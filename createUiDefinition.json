@@ -1,0 +1,259 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": false,
+      "basics": {
+        "description": "**Copilot Credit Compass** is an independent planning tool that estimates Microsoft Copilot credit consumption, models the cost, and recommends a funding strategy.\n\nThis deployment provisions a Container App, a serverless Cosmos DB account with local authentication disabled, Log Analytics and Application Insights. Every connection is made with a user-assigned managed identity — no connection string or key is written to any application setting.\n\nThe application collects no personal data. See the `/privacy` page on the deployed instance for exactly what does and does not leave a browser.",
+        "location": {
+          "label": "Region",
+          "toolTip": "All resources are created in this region. Choose one close to your users — the app scales to zero, so cold-start latency is the main thing region choice affects.",
+          "resourceTypes": [
+            "Microsoft.App/containerApps",
+            "Microsoft.DocumentDB/databaseAccounts",
+            "Microsoft.OperationalInsights/workspaces"
+          ]
+        }
+      }
+    },
+    "steps": [
+      {
+        "name": "application",
+        "label": "Application",
+        "elements": [
+          {
+            "name": "namePrefixInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Resource names are derived from the prefix below plus a hash of the resource group, so the same prefix can be reused safely in different resource groups."
+            }
+          },
+          {
+            "name": "namePrefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Name prefix",
+            "defaultValue": "credcompass",
+            "toolTip": "Three to twenty-four lowercase letters and numbers. Used to derive every resource name.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-z0-9]{3,24}$",
+              "validationMessage": "Use 3 to 24 lowercase letters and numbers only."
+            }
+          },
+          {
+            "name": "containerImage",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Container image",
+            "defaultValue": "ghcr.io/copilot-credit-compass/app:latest",
+            "toolTip": "Fully qualified image reference including registry and tag. Pin a tag rather than using latest for anything you intend to keep.",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9._\\-/:@]+$",
+              "validationMessage": "Enter a valid container image reference."
+            }
+          },
+          {
+            "name": "registryRequiresAuthentication",
+            "type": "Microsoft.Common.OptionsGroup",
+            "label": "Private registry",
+            "defaultValue": "No — the image is public",
+            "toolTip": "If the image is private, the managed identity is used to pull it. You must grant that identity AcrPull (or the registry equivalent) after deployment.",
+            "constraints": {
+              "allowedValues": [
+                { "label": "No — the image is public", "value": false },
+                { "label": "Yes — pull with the managed identity", "value": true }
+              ],
+              "required": true
+            }
+          },
+          {
+            "name": "registryServer",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Registry login server",
+            "defaultValue": "ghcr.io",
+            "toolTip": "For example ghcr.io, or myregistry.azurecr.io.",
+            "visible": "[equals(steps('application').registryRequiresAuthentication, true)]",
+            "constraints": {
+              "required": true,
+              "regex": "^[a-zA-Z0-9.\\-]+$",
+              "validationMessage": "Enter a valid registry host name."
+            }
+          },
+          {
+            "name": "privateRegistryWarning",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[equals(steps('application').registryRequiresAuthentication, true)]",
+            "options": {
+              "icon": "Warning",
+              "text": "The deployment creates the managed identity but cannot grant it access to a registry in another subscription or tenant. Grant AcrPull to the identity shown in the deployment outputs, then restart the container app revision."
+            }
+          }
+        ]
+      },
+      {
+        "name": "scale",
+        "label": "Scale and cost",
+        "elements": [
+          {
+            "name": "scaleInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Cosmos DB is provisioned serverless and the container app scales to zero by default, so an idle deployment costs close to nothing. The main fixed cost is Log Analytics ingestion, capped below."
+            }
+          },
+          {
+            "name": "minReplicas",
+            "type": "Microsoft.Common.Slider",
+            "label": "Minimum replicas",
+            "defaultValue": 0,
+            "min": 0,
+            "max": 5,
+            "showStepMarkers": true,
+            "toolTip": "Zero means the app scales to nothing when idle and pays nothing, at the cost of a cold start on the first request. Set to one if cold starts are unacceptable.",
+            "constraints": { "required": true }
+          },
+          {
+            "name": "maxReplicas",
+            "type": "Microsoft.Common.Slider",
+            "label": "Maximum replicas",
+            "defaultValue": 5,
+            "min": 1,
+            "max": 30,
+            "showStepMarkers": false,
+            "toolTip": "Upper bound on scale-out. Five comfortably handles a public launch for a tool of this shape.",
+            "constraints": { "required": true }
+          },
+          {
+            "name": "concurrentRequestsPerReplica",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Concurrent requests per replica",
+            "defaultValue": "40",
+            "toolTip": "The HTTP scale rule adds a replica when sustained concurrency exceeds this. Export generation is the heaviest request type — lower this if exports feel slow under load.",
+            "constraints": {
+              "required": true,
+              "regex": "^[1-9][0-9]{0,3}$",
+              "validationMessage": "Enter a whole number between 1 and 9999."
+            }
+          },
+          {
+            "name": "logAnalyticsDailyQuotaGb",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Log Analytics daily cap (GB)",
+            "defaultValue": "1",
+            "toolTip": "Ingestion is capped to protect against a runaway log bill. Use -1 for no cap.",
+            "constraints": {
+              "required": true,
+              "regex": "^(-1|[0-9]{1,4})$",
+              "validationMessage": "Enter a whole number of GB, or -1 for no cap."
+            }
+          },
+          {
+            "name": "logRetentionDays",
+            "type": "Microsoft.Common.DropDown",
+            "label": "Log retention",
+            "defaultValue": "30 days",
+            "toolTip": "How long operational logs are kept. The application writes no personal data to logs, so this is an operations and cost decision rather than a privacy one.",
+            "constraints": {
+              "allowedValues": [
+                { "label": "30 days", "value": 30 },
+                { "label": "90 days", "value": 90 },
+                { "label": "180 days", "value": 180 },
+                { "label": "1 year", "value": 365 },
+                { "label": "2 years", "value": 730 }
+              ],
+              "required": true
+            }
+          }
+        ]
+      },
+      {
+        "name": "security",
+        "label": "Security and networking",
+        "elements": [
+          {
+            "name": "identityInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Cosmos DB is deployed with local authentication disabled, so no account key exists to be issued or leaked. The container app reaches it exclusively through a user-assigned managed identity holding the built-in Cosmos data contributor role. There are no secrets in the container app configuration."
+            }
+          },
+          {
+            "name": "enableFrontDoor",
+            "type": "Microsoft.Common.OptionsGroup",
+            "label": "Azure Front Door with WAF",
+            "defaultValue": "No",
+            "toolTip": "Adds Front Door Standard with the Microsoft managed rule set in prevention mode. Recommended for any public deployment; adds a fixed monthly cost.",
+            "constraints": {
+              "allowedValues": [
+                { "label": "No", "value": false },
+                { "label": "Yes — recommended for public instances", "value": true }
+              ],
+              "required": true
+            }
+          },
+          {
+            "name": "frontDoorInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": "[equals(steps('security').enableFrontDoor, true)]",
+            "options": {
+              "icon": "Info",
+              "text": "The container app ingress remains publicly reachable at its own FQDN. To force all traffic through Front Door, restrict ingress to the Front Door service tag after deployment."
+            }
+          },
+          {
+            "name": "privacyInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Application Insights is configured to mask the client IP rather than store it, and the application never records an IP address at all — its rate limiter uses a salted hash that is destroyed every 24 hours.",
+              "uri": "https://learn.microsoft.com/azure/azure-monitor/app/ip-collection"
+            }
+          }
+        ]
+      },
+      {
+        "name": "tagsStep",
+        "label": "Tags",
+        "elements": [
+          {
+            "name": "tagsInfo",
+            "type": "Microsoft.Common.InfoBox",
+            "visible": true,
+            "options": {
+              "icon": "Info",
+              "text": "Tags entered here are applied to every resource in the deployment, not only to the container app."
+            }
+          },
+          {
+            "name": "tags",
+            "type": "Microsoft.Common.TagsByResource",
+            "resources": ["Microsoft.App/containerApps"]
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "namePrefix": "[steps('application').namePrefix]",
+      "location": "[location()]",
+      "containerImage": "[steps('application').containerImage]",
+      "registryRequiresAuthentication": "[steps('application').registryRequiresAuthentication]",
+      "registryServer": "[steps('application').registryServer]",
+      "minReplicas": "[int(steps('scale').minReplicas)]",
+      "maxReplicas": "[int(steps('scale').maxReplicas)]",
+      "concurrentRequestsPerReplica": "[int(steps('scale').concurrentRequestsPerReplica)]",
+      "logAnalyticsDailyQuotaGb": "[int(steps('scale').logAnalyticsDailyQuotaGb)]",
+      "logRetentionDays": "[int(steps('scale').logRetentionDays)]",
+      "enableFrontDoor": "[steps('security').enableFrontDoor]",
+      "tags": "[union(steps('tagsStep').tags['Microsoft.App/containerApps'], createObject('application', 'copilot-credit-compass'))]"
+    }
+  }
+}

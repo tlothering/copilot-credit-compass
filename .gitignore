@@ -12,3 +12,6 @@ e2e-results/
 *.tsbuildinfo
 .data/
 .DS_Store
+e2e-results/
+playwright-report/
+

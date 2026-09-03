@@ -24,7 +24,18 @@ export default function Projection({ months }: { months: MonthlyPoint[] }) {
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 4 }}>
+        {/*
+          The visual is decorative: the same data is rendered as a real table
+          beside it. Recharts otherwise injects role="application" tabindex="0"
+          on its <svg>, which puts a focusable node inside an aria-hidden
+          subtree — a serious axe violation and a genuine keyboard trap.
+        */}
+        <AreaChart
+          data={data}
+          margin={{ top: 8, right: 8, bottom: 0, left: 4 }}
+          accessibilityLayer={false}
+          tabIndex={-1}
+        >
           <defs>
             <linearGradient id="bandFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.28} />

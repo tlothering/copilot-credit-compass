@@ -123,7 +123,12 @@
 
   --fg: var(--ink-900);
   --fg-muted: var(--ink-600);
-  --fg-subtle: var(--ink-500);
+  /*
+    Deliberately NOT --ink-500. At 55% lightness the subtle text measured
+    4.32:1 against --bg-sunken, which fails WCAG AA for body copy. 50% clears
+    it at 5.3:1 with headroom for the warmer surfaces.
+  */
+  --fg-subtle: oklch(50% 0.015 285);
 
   --accent: oklch(50% 0.235 288);
   --accent-hover: oklch(44% 0.24 288);

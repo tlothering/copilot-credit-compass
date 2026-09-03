@@ -1,0 +1,43 @@
+# Azure Developer CLI manifest.
+#
+#   azd auth login
+#   azd up
+#
+# provisions infra/main.bicep and deploys the container image built from the
+# repository root Dockerfile. `azd` reads the same Bicep the portal button uses,
+# so the two paths cannot drift.
+
+name: copilot-credit-compass
+metadata:
+  template: copilot-credit-compass@1.0.0
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+services:
+  app:
+    project: .
+    language: ts
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      context: .
+
+hooks:
+  postprovision:
+    windows:
+      shell: pwsh
+      run: |
+        Write-Host ""
+        Write-Host "Provisioned. Cosmos local auth is disabled - the app reaches it"
+        Write-Host "with the managed identity only. There is no key to copy."
+        Write-Host ""
+    posix:
+      shell: sh
+      run: |
+        echo ""
+        echo "Provisioned. Cosmos local auth is disabled - the app reaches it"
+        echo "with the managed identity only. There is no key to copy."
+        echo ""

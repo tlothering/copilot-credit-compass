@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # The engine is the highest-risk code in the repository: every published
+      # number comes out of it. The coverage threshold is enforced in
+      # vitest.config.ts and this step fails if branch coverage drops below it.
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Runs against a production build with no database configured, which is
+      # the fallback path a fresh clone hits. If the app cannot complete a
+      # wizard and produce an export without Cosmos, that is a bug.
+      - name: End-to-end tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  infra:
+    name: Infrastructure
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Bicep
+        run: az bicep build --file infra/main.bicep --outfile /tmp/compiled.json
+
+      # azuredeploy.json is what the Deploy to Azure button reads. If it has
+      # drifted from the Bicep, the button ships something nobody reviewed.
+      - name: Verify azuredeploy.json is current
+        run: |
+          python3 -c "
+          import json, sys
+          a = json.load(open('/tmp/compiled.json'))
+          b = json.load(open('azuredeploy.json'))
+          for d in (a, b):
+              d.get('metadata', {}).pop('_generator', None)
+          if a != b:
+              print('azuredeploy.json is out of date. Run: npm run bicep:build')
+              sys.exit(1)
+          print('azuredeploy.json matches infra/main.bicep')
+          "
+
+      - name: Validate createUiDefinition.json is well-formed
+        run: python3 -c "import json; json.load(open('createUiDefinition.json')); print('ok')"

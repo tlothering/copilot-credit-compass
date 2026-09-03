@@ -203,15 +203,20 @@ export function Treemap({ nodes, unit }: { nodes: TreeNode[]; unit: 'credits' | 
               top: `${(c.y / 62) * 100}%`,
               width: `${c.w}%`,
               height: `${(c.h / 62) * 100}%`,
-              background: seriesColor(i),
-              opacity: 0.86,
+              // Tinted surface rather than a saturated fill. A saturated tile
+              // cannot carry legible text in both themes — the light palette
+              // sits at 66-80% lightness and the dark palette at 48-56%, so no
+              // single label colour clears AA on both. Mixing the series hue
+              // into the sunken surface keeps the tile unmistakably colour-coded
+              // while letting the normal foreground token do the reading.
+              background: `color-mix(in oklab, ${seriesColor(i)} 20%, var(--bg-sunken))`,
             }}
             title={`${c.label} — ${fmt(c.value)} (${share.toFixed(1)}%)`}
           >
             {roomy ? (
-              <span className="block text-2xs leading-tight font-medium text-[oklch(0.16_0.02_260)]">
+              <span className="block text-2xs leading-tight font-medium text-fg">
                 {c.label}
-                <span className="block font-normal opacity-75 mono-num">{fmt(c.value)}</span>
+                <span className="mono-num block font-normal text-fg">{fmt(c.value)}</span>
               </span>
             ) : null}
           </div>

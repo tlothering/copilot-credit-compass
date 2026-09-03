@@ -480,12 +480,22 @@ function OptionDetail({
                 ? 'border-b border-line/50 bg-accent-quiet'
                 : o.eligible
                   ? 'border-b border-line/50'
-                  : 'border-b border-line/50 opacity-55'
+                  : // Ineligible rows used to be dimmed with opacity, which
+                    // pushed their text below AA. They are de-emphasised with a
+                    // recessed surface and an explicit label instead — the
+                    // reason a row is ruled out is exactly the sort of thing a
+                    // reader needs to be able to read.
+                    'border-b border-line/50 bg-bg-sunken'
             }
           >
             <th scope="row" className="py-2 pr-3 font-normal">
               <span className="font-medium">{o.label}</span>
-              <span className="block text-2xs text-fg-subtle">
+              {!o.eligible ? (
+                <span className="ml-2 rounded-full border border-line px-1.5 py-0.5 text-2xs text-fg-muted">
+                  Not eligible
+                </span>
+              ) : null}
+              <span className="block text-2xs text-fg-muted">
                 {o.eligible ? o.bestWhen : o.ineligibleReasons.join('; ')}
               </span>
             </th>
@@ -597,7 +607,12 @@ function Stat({
       >
         {value}
       </dd>
-      {sub ? <p className="mt-0.5 text-2xs text-fg-subtle">{sub}</p> : null}
+      {/*
+        The supporting line is a second <dd>, not a <p>. A <div> inside a <dl>
+        may only group <dt>/<dd> pairs; a stray <p> breaks the list semantics
+        and detaches the explanation from the figure it explains.
+      */}
+      {sub ? <dd className="mt-0.5 text-2xs text-fg-muted">{sub}</dd> : null}
     </div>
   );
 }
