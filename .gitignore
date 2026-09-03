@@ -8,4 +8,7 @@ coverage/
 .azure/
 test-results/
 playwright-report/
-
+e2e-results/
+*.tsbuildinfo
+.data/
+.DS_Store
