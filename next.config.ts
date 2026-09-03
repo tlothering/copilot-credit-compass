@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',
-  serverExternalPackages: ['exceljs', '@azure/cosmos', '@azure/identity'],
+  serverExternalPackages: ['exceljs', 'pptxgenjs', '@azure/cosmos', '@azure/identity'],
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts'],
   },

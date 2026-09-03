@@ -1,0 +1,421 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   Copilot Credit Compass — design tokens (SPEC §9)
+   Dark-first. The light theme is designed independently, not an inversion:
+   it uses a warm paper ground and a deeper, less luminous accent so that
+   contrast holds against white without the violet turning fluorescent.
+   ========================================================================= */
+
+@theme {
+  --font-sans:
+    'Geist', 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+
+  /* Fluid type scale */
+  --text-2xs: clamp(0.6875rem, 0.66rem + 0.14vw, 0.75rem);
+  --text-xs: clamp(0.75rem, 0.72rem + 0.15vw, 0.8125rem);
+  --text-sm: clamp(0.8125rem, 0.78rem + 0.17vw, 0.875rem);
+  --text-base: clamp(0.9375rem, 0.9rem + 0.19vw, 1rem);
+  --text-lg: clamp(1.0625rem, 1rem + 0.31vw, 1.1875rem);
+  --text-xl: clamp(1.1875rem, 1.09rem + 0.44vw, 1.375rem);
+  --text-2xl: clamp(1.4375rem, 1.28rem + 0.78vw, 1.75rem);
+  --text-3xl: clamp(1.75rem, 1.45rem + 1.5vw, 2.375rem);
+  --text-4xl: clamp(2.125rem, 1.6rem + 2.6vw, 3.25rem);
+  --text-5xl: clamp(2.5rem, 1.7rem + 4vw, 4.25rem);
+
+  --radius-card: 1rem;
+  --radius-field: 0.625rem;
+
+  --ease-spring: linear(
+    0, 0.0039 1.6%, 0.0157 3.3%, 0.0625 6.7%, 0.1407 10.4%, 0.25 14.3%, 0.3908 18.4%,
+    0.5625 22.9%, 0.6789 25.8%, 0.7683 28.4%, 0.8407 30.9%, 0.8983 33.4%, 0.9425 35.9%,
+    0.9752 38.5%, 0.9976 41.4%, 1.0117 44.4%, 1.0193 47.7%, 1.0219 52.4%, 1.0194 58.1%,
+    1.0117 65.6%, 1.0032 74.3%, 0.9989 82.5%, 0.9981 90.5%, 1
+  );
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------- dark ---- */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Warm near-black neutral ramp */
+  --ink-000: oklch(13% 0.012 285);
+  --ink-025: oklch(16% 0.014 285);
+  --ink-050: oklch(19% 0.015 285);
+  --ink-100: oklch(23% 0.016 285);
+  --ink-200: oklch(29% 0.017 285);
+  --ink-300: oklch(38% 0.018 285);
+  --ink-400: oklch(50% 0.018 285);
+  --ink-500: oklch(62% 0.016 285);
+  --ink-600: oklch(74% 0.013 285);
+  --ink-700: oklch(85% 0.01 285);
+  --ink-800: oklch(93% 0.007 285);
+  --ink-900: oklch(98% 0.004 285);
+
+  --bg: var(--ink-000);
+  --bg-raised: color-mix(in oklab, var(--ink-050) 88%, transparent);
+  --bg-sunken: oklch(10% 0.011 285);
+  --surface-border: color-mix(in oklab, var(--ink-900) 11%, transparent);
+  --surface-border-strong: color-mix(in oklab, var(--ink-900) 20%, transparent);
+
+  --fg: var(--ink-900);
+  --fg-muted: var(--ink-600);
+  --fg-subtle: var(--ink-500);
+
+  /* Electric indigo/violet accent */
+  --accent: oklch(66% 0.235 288);
+  --accent-hover: oklch(72% 0.225 288);
+  --accent-quiet: color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-line: color-mix(in oklab, var(--accent) 42%, transparent);
+  --on-accent: oklch(15% 0.02 288);
+
+  --success: oklch(74% 0.17 155);
+  --success-quiet: color-mix(in oklab, var(--success) 15%, transparent);
+  --warn: oklch(80% 0.16 78);
+  --warn-quiet: color-mix(in oklab, var(--warn) 15%, transparent);
+  --risk: oklch(68% 0.2 22);
+  --risk-quiet: color-mix(in oklab, var(--risk) 16%, transparent);
+  --info: oklch(72% 0.14 232);
+  --info-quiet: color-mix(in oklab, var(--info) 15%, transparent);
+
+  --glass-bg: color-mix(in oklab, var(--ink-050) 62%, transparent);
+  --glass-border: color-mix(in oklab, var(--ink-900) 14%, transparent);
+
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.4), 0 8px 24px -12px oklch(0% 0 0 / 0.6);
+  --shadow-lift: 0 2px 4px oklch(0% 0 0 / 0.4), 0 18px 40px -16px oklch(0% 0 0 / 0.7);
+
+  /* Categorical series — perceptually spaced hues at even lightness */
+  --series-1: oklch(66% 0.235 288);
+  --series-2: oklch(72% 0.16 200);
+  --series-3: oklch(75% 0.165 155);
+  --series-4: oklch(80% 0.155 85);
+  --series-5: oklch(71% 0.185 35);
+  --series-6: oklch(69% 0.17 340);
+  --series-7: oklch(70% 0.13 255);
+  --series-8: oklch(78% 0.11 120);
+}
+
+/* --------------------------------------------------------------- light ---- */
+[data-theme='light'] {
+  color-scheme: light;
+
+  --ink-000: oklch(99% 0.004 95);
+  --ink-025: oklch(97.5% 0.005 95);
+  --ink-050: oklch(96% 0.006 95);
+  --ink-100: oklch(93% 0.007 95);
+  --ink-200: oklch(88% 0.008 95);
+  --ink-300: oklch(79% 0.009 95);
+  --ink-400: oklch(66% 0.011 285);
+  --ink-500: oklch(55% 0.014 285);
+  --ink-600: oklch(45% 0.016 285);
+  --ink-700: oklch(35% 0.018 285);
+  --ink-800: oklch(26% 0.018 285);
+  --ink-900: oklch(18% 0.016 285);
+
+  --bg: oklch(98.5% 0.006 95);
+  --bg-raised: oklch(100% 0 0);
+  --bg-sunken: oklch(96% 0.008 95);
+  --surface-border: oklch(88% 0.008 95);
+  --surface-border-strong: oklch(80% 0.01 95);
+
+  --fg: var(--ink-900);
+  --fg-muted: var(--ink-600);
+  --fg-subtle: var(--ink-500);
+
+  --accent: oklch(50% 0.235 288);
+  --accent-hover: oklch(44% 0.24 288);
+  --accent-quiet: color-mix(in oklab, var(--accent) 10%, white);
+  --accent-line: color-mix(in oklab, var(--accent) 35%, transparent);
+  --on-accent: oklch(99% 0.005 288);
+
+  --success: oklch(48% 0.14 155);
+  --success-quiet: color-mix(in oklab, var(--success) 12%, white);
+  --warn: oklch(55% 0.14 65);
+  --warn-quiet: color-mix(in oklab, var(--warn) 14%, white);
+  --risk: oklch(51% 0.2 25);
+  --risk-quiet: color-mix(in oklab, var(--risk) 11%, white);
+  --info: oklch(48% 0.14 240);
+  --info-quiet: color-mix(in oklab, var(--info) 11%, white);
+
+  --glass-bg: color-mix(in oklab, white 78%, transparent);
+  --glass-border: oklch(85% 0.008 95);
+
+  --shadow-card: 0 1px 2px oklch(30% 0.02 285 / 0.06), 0 8px 24px -14px oklch(30% 0.02 285 / 0.18);
+  --shadow-lift: 0 2px 4px oklch(30% 0.02 285 / 0.08), 0 18px 40px -18px oklch(30% 0.02 285 / 0.26);
+
+  --series-1: oklch(50% 0.235 288);
+  --series-2: oklch(50% 0.14 205);
+  --series-3: oklch(48% 0.14 155);
+  --series-4: oklch(56% 0.14 75);
+  --series-5: oklch(52% 0.18 32);
+  --series-6: oklch(50% 0.17 340);
+  --series-7: oklch(48% 0.13 258);
+  --series-8: oklch(52% 0.11 125);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-sunken: var(--bg-sunken);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-line: var(--surface-border);
+  --color-line-strong: var(--surface-border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-quiet: var(--accent-quiet);
+  --color-accent-line: var(--accent-line);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-success-quiet: var(--success-quiet);
+  --color-warn: var(--warn);
+  --color-warn-quiet: var(--warn-quiet);
+  --color-risk: var(--risk);
+  --color-risk-quiet: var(--risk-quiet);
+  --color-info: var(--info);
+  --color-info-quiet: var(--info-quiet);
+  --color-ink-100: var(--ink-100);
+  --color-ink-200: var(--ink-200);
+  --color-ink-300: var(--ink-300);
+  --color-ink-400: var(--ink-400);
+
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-series-7: var(--series-7);
+  --color-series-8: var(--series-8);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-lift);
+}
+
+/* --------------------------------------------------------------- base ---- */
+@layer base {
+  * {
+    border-color: var(--surface-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1, h2, h3, h4 {
+    line-height: 1.15;
+    letter-spacing: -0.021em;
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  p, li {
+    text-wrap: pretty;
+  }
+
+  /* Numbers must never jitter as they animate. */
+  .tnum,
+  th, td,
+  output {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1, 'cv01' 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--accent-quiet);
+    color: var(--fg);
+  }
+
+  /* Scrollbars that do not fight the dark ground */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-200) transparent;
+  }
+}
+
+/* ----------------------------------------------------------- utilities ---- */
+@utility glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid var(--glass-border);
+}
+
+@utility card {
+  background: var(--bg-raised);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  container-type: inline-size;
+}
+
+@utility mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Gradient mesh hero, SPEC §9. Static under reduced motion. */
+@utility mesh {
+  position: relative;
+  isolation: isolate;
+  background-image:
+    radial-gradient(60% 70% at 12% 8%, color-mix(in oklab, var(--accent) 32%, transparent), transparent 62%),
+    radial-gradient(50% 60% at 88% 4%, color-mix(in oklab, var(--info) 26%, transparent), transparent 58%),
+    radial-gradient(70% 80% at 62% 96%, color-mix(in oklab, var(--series-6) 22%, transparent), transparent 64%);
+}
+
+@utility grain {
+  position: relative;
+}
+
+.grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  animation: grain-shift 8s steps(6) infinite;
+}
+
+@keyframes grain-shift {
+  0%, 100% { transform: translate(0, 0); }
+  16% { transform: translate(-2%, 1%); }
+  33% { transform: translate(1%, -2%); }
+  50% { transform: translate(-1%, 2%); }
+  66% { transform: translate(2%, 1%); }
+  83% { transform: translate(1%, -1%); }
+}
+
+/* Bento grid — varied spans, container-query friendly. */
+@utility bento {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 48rem) {
+  .bento { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+@media (min-width: 80rem) {
+  .bento { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 1.25rem; }
+}
+
+/* ------------------------------------------------------------- motion ---- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.rise {
+  animation: rise 420ms var(--ease-spring) both;
+}
+
+@keyframes sheen {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-sunken) 25%,
+    color-mix(in oklab, var(--ink-200) 55%, transparent) 50%,
+    var(--bg-sunken) 75%
+  );
+  background-size: 200% 100%;
+  animation: sheen 1.4s linear infinite;
+  border-radius: var(--radius-field);
+}
+
+/* View Transitions between wizard steps (SPEC §9). */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(wizard-panel) {
+    animation: vt-out 180ms var(--ease-out-quint) both;
+  }
+  ::view-transition-new(wizard-panel) {
+    animation: vt-in 260ms var(--ease-spring) both;
+  }
+}
+
+@keyframes vt-out {
+  to { opacity: 0; transform: translateY(-8px); }
+}
+
+@keyframes vt-in {
+  from { opacity: 0; transform: translateY(14px); }
+}
+
+/* --------------------------------------------------- reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .grain::after {
+    animation: none;
+    opacity: 0.2;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ------------------------------------------------------ forced colours ---- */
+@media (forced-colors: active) {
+  .card,
+  .glass {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    backdrop-filter: none;
+  }
+
+  .mesh {
+    background-image: none;
+  }
+
+  .grain::after {
+    display: none;
+  }
+}
+
+/* Print — exports are the primary artefact, but /methodology gets printed too. */
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}

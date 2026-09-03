@@ -2,9 +2,10 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
+  oxc: { jsx: { runtime: 'automatic', importSource: 'react' } },
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts', 'tests/unit/**/*.test.ts'],
+    include: ['lib/**/*.test.ts', 'tests/unit/**/*.test.ts', 'tests/export/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary', 'html'],
