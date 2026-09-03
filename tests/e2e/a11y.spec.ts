@@ -131,8 +131,25 @@ test('charts expose their data as real tables', async ({ page }) => {
   }
   await page.getByRole('button', { name: /Calculate my result/ }).click();
   await page.waitForURL(/\/results/);
+  await page.waitForLoadState('networkidle');
 
   // Every chart frame renders a table with a caption; the visual is aria-hidden.
-  const tables = page.locator('table');
+  // Assert on the accessible role rather than the tag, so the test fails if a
+  // table is ever hidden from assistive technology.
+  const tables = page.getByRole('table');
+  await expect(tables.first()).toBeAttached();
   expect(await tables.count()).toBeGreaterThan(0);
+
+  // Each chart's table must be captioned, and the visual must sit inside an
+  // aria-hidden subtree so a screen reader is never read the same series twice.
+  const captions = page.locator('table > caption');
+  expect(await captions.count()).toBeGreaterThan(0);
+  for (const caption of await captions.all()) {
+    expect((await caption.textContent())?.trim()).toBeTruthy();
+  }
+
+  const exposedVisuals = await page
+    .locator('.recharts-wrapper')
+    .evaluateAll((nodes) => nodes.filter((n) => !n.closest('[aria-hidden="true"]')).length);
+  expect(exposedVisuals).toBe(0);
 });
