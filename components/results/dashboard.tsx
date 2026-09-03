@@ -12,6 +12,7 @@ import { Badge, Button, Card, CardTitle } from '@/components/ui/primitives';
 import { ChartFrame, DataTable } from './chart-frame';
 import { BulletRow, Treemap, Tornado, Waterfall } from './charts';
 import { BenchmarkPlacement } from './benchmark-placement';
+import { BenchmarkSubmitter } from './benchmark-submitter';
 import { ExportBar } from './export-bar';
 import { cn, compact, compactUsd, num, pct, usd } from '@/lib/ui';
 
@@ -422,6 +423,7 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
       </Card>
 
       <BenchmarkPlacement result={result} />
+      <BenchmarkSubmitter result={result} />
 
       {/* ------------------------------------------------- Audit */}
       <AuditTrail result={result} />
