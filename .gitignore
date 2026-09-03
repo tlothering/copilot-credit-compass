@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+*.log
+coverage/
+.azure/
+test-results/
+playwright-report/
+
