@@ -1,0 +1,297 @@
+{
+  "version": "v1",
+  "effectiveDate": "2026-01-01",
+  "currency": "USD",
+  "title": "Copilot Credit Compass rate card",
+  "disclaimer": "Independent planning rate card. Not affiliated with, endorsed by, or a pricing quotation from Microsoft. Rows marked verified:false are market-observed or interpolated and must be confirmed with your Microsoft account team before purchase.",
+  "changelog": [
+    {
+      "version": "v1",
+      "date": "2026-01-01",
+      "summary": "Initial seed rate card. Copilot Studio consumption rates from Microsoft Learn 'Billing rates and management'. Commercial rates from public Microsoft pricing pages. P3 pre-purchase tier ladder interpolated from the two published anchor points (15,000 CU tier approx. 6 percent, upper tiers trending to approx. 20 percent)."
+    }
+  ],
+  "consumption": {
+    "classic-answer": {
+      "label": "Classic answer",
+      "credits": 1,
+      "unit": "answer",
+      "displayRate": "1 credit per classic answer",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "generative-answer": {
+      "label": "Generative answer",
+      "credits": 2,
+      "unit": "answer",
+      "displayRate": "2 credits per generative answer",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "agent-action": {
+      "label": "Agent action",
+      "credits": 5,
+      "unit": "action",
+      "displayRate": "5 credits per agent action",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "tenant-graph-grounding": {
+      "label": "Tenant Microsoft Graph grounding",
+      "credits": 10,
+      "unit": "message",
+      "displayRate": "10 credits per grounded message",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "agent-flow-action": {
+      "label": "Agent flow action",
+      "credits": 0.13,
+      "unit": "action",
+      "displayRate": "13 credits per 100 agent flow actions",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "ai-tools-basic-response": {
+      "label": "Text and generative AI tools - basic (per response)",
+      "credits": 0.1,
+      "unit": "response",
+      "displayRate": "1 credit per 10 responses",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "ai-tools-standard-response": {
+      "label": "Text and generative AI tools - standard (per response)",
+      "credits": 1.5,
+      "unit": "response",
+      "displayRate": "15 credits per 10 responses",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "ai-tools-premium-response": {
+      "label": "Text and generative AI tools - premium (per response)",
+      "credits": 10,
+      "unit": "response",
+      "displayRate": "100 credits per 10 responses",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "ai-tools-basic-tokens": {
+      "label": "Text and generative AI tools - basic (per 1K tokens)",
+      "credits": 0.1,
+      "unit": "1K tokens",
+      "displayRate": "0.1 credits per 1,000 tokens",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "ai-tools-standard-tokens": {
+      "label": "Text and generative AI tools - standard (per 1K tokens)",
+      "credits": 1.5,
+      "unit": "1K tokens",
+      "displayRate": "1.5 credits per 1,000 tokens",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "ai-tools-premium-tokens": {
+      "label": "Text and generative AI tools - premium (per 1K tokens)",
+      "credits": 10,
+      "unit": "1K tokens",
+      "displayRate": "10 credits per 1,000 tokens",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "content-processing-page": {
+      "label": "Content processing tools",
+      "credits": 8,
+      "unit": "page or image",
+      "displayRate": "8 credits per page or image",
+      "offsetByM365CopilotLicence": true,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "voice-classic-minute": {
+      "label": "Voice - classic orchestration",
+      "credits": 10,
+      "unit": "minute",
+      "displayRate": "10 credits per minute",
+      "offsetByM365CopilotLicence": false,
+      "note": "Core agent activity is included in the per-minute rate. Voice traffic is modelled as never licence-offset because contact-centre callers are not Microsoft 365 Copilot licence holders.",
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "voice-genai-minute": {
+      "label": "Voice - GenAI",
+      "credits": 35,
+      "unit": "minute",
+      "displayRate": "35 credits per minute",
+      "offsetByM365CopilotLicence": false,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "voice-premium-genai-minute": {
+      "label": "Voice - Premium GenAI",
+      "credits": 75,
+      "unit": "minute",
+      "displayRate": "75 credits per minute",
+      "offsetByM365CopilotLicence": false,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-rates-management"
+    },
+    "retrieval-api-query": {
+      "label": "Microsoft 365 Copilot Retrieval API query (preview)",
+      "credits": 3,
+      "unit": "query",
+      "displayRate": "3 credits per retrieval query",
+      "offsetByM365CopilotLicence": false,
+      "note": "Preview meter. Rate is a planning placeholder, not a published Microsoft figure.",
+      "verified": false,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-365-copilot/extensibility/api-copilot-retrieval"
+    },
+    "cowork-task": {
+      "label": "Copilot Cowork / Work IQ API task",
+      "credits": 30,
+      "unit": "task",
+      "displayRate": "30 credits per completed task",
+      "offsetByM365CopilotLicence": true,
+      "note": "Market-observed planning placeholder for usage-based Copilot Credit consumption.",
+      "verified": false,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-365-copilot/"
+    },
+    "github-premium-request": {
+      "label": "GitHub Copilot premium request",
+      "credits": 4,
+      "unit": "premium request",
+      "displayRate": "4 credits per premium request (approx. $0.04 at the pay-as-you-go credit rate)",
+      "offsetByM365CopilotLicence": false,
+      "note": "Expressed in credits so GitHub overage prices at the $0.01 per credit meter while reconciling to the published $0.04 per premium request.",
+      "verified": false,
+      "sourceUrl": "https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
+    }
+  },
+  "commercial": {
+    "paygCreditUsd": {
+      "label": "Pay-as-you-go Copilot Credit",
+      "value": 0.01,
+      "unit": "USD per credit",
+      "note": "Azure meter billed to an Azure subscription. Also the meter for Microsoft 365 Copilot Chat agents and SharePoint agents.",
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-licensing"
+    },
+    "capacityPack": {
+      "label": "Copilot Studio prepaid capacity pack",
+      "monthlyUsd": 200,
+      "credits": 25000,
+      "effectiveUsdPerCredit": 0.008,
+      "rollsOver": false,
+      "resetDayOfMonth": 1,
+      "note": "Tenant-level pool. Unused capacity does not roll over - it resets on the first of each month.",
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-licensing"
+    },
+    "m365CopilotSeatMonthlyUsd": {
+      "label": "Microsoft 365 Copilot seat",
+      "value": 30,
+      "unit": "USD per user per month (annual commitment)",
+      "note": "Add-on to a qualifying Microsoft 365 base plan.",
+      "verified": true,
+      "sourceUrl": "https://www.microsoft.com/en-us/microsoft-365/copilot/microsoft-365-copilot-business"
+    },
+    "securityCopilot": {
+      "label": "Microsoft Security Copilot",
+      "provisionedScuHourUsd": 4,
+      "overageScuHourUsd": 6,
+      "minimumScu": 1,
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/copilot/security/manage-usage"
+    },
+    "githubCopilot": {
+      "label": "GitHub Copilot",
+      "business": { "seatMonthlyUsd": 19, "includedPremiumRequestsPerUser": 300 },
+      "enterprise": { "seatMonthlyUsd": 39, "includedPremiumRequestsPerUser": 1000 },
+      "overageCreditUsd": 0.01,
+      "verified": true,
+      "sourceUrl": "https://docs.github.com/en/copilot/about-github-copilot/plans-for-github-copilot"
+    },
+    "foundry": {
+      "label": "Microsoft Foundry bring-your-own-model tokens",
+      "inputPerMillionTokensUsd": 2.5,
+      "outputPerMillionTokensUsd": 10,
+      "note": "Representative mid-tier frontier model pricing. Replace with your negotiated Foundry or PTU rate.",
+      "verified": false,
+      "sourceUrl": "https://azure.microsoft.com/en-us/pricing/details/ai-foundry/"
+    }
+  },
+  "p3PrePurchasePlan": {
+    "label": "Copilot Credit Pre-Purchase Plan (P3)",
+    "termMonths": 12,
+    "usdRetailPaidDownPerCommitUnit": 1,
+    "purchasedAs": "Azure reservation",
+    "cancellable": false,
+    "exchangeable": false,
+    "splittable": false,
+    "mergeable": false,
+    "autoRenews": true,
+    "stacksWithNegotiatedDiscounts": false,
+    "deductedFromAzurePrepaymentBalance": false,
+    "separateInvoiceLineItem": true,
+    "overageFallsBackToPayg": true,
+    "scopes": ["resourceGroup", "subscription", "shared", "managementGroup"],
+    "tiers": [
+      { "commitUnits": 5000, "discountPct": 3, "verified": false },
+      { "commitUnits": 15000, "discountPct": 6, "verified": true },
+      { "commitUnits": 50000, "discountPct": 10, "verified": false },
+      { "commitUnits": 150000, "discountPct": 14, "verified": false },
+      { "commitUnits": 500000, "discountPct": 17, "verified": false },
+      { "commitUnits": 1500000, "discountPct": 20, "verified": false }
+    ],
+    "note": "Purchased CCCUs pay down qualifying Copilot Credit retail cost in USD, where 1 CU is approximately $1 of retail cost. Only the 15,000 CU tier discount is published; the remaining ladder is interpolated toward the stated approx. 20 percent ceiling.",
+    "sourceUrl": "https://learn.microsoft.com/en-us/azure/cost-management-billing/reservations/prepay-copilot-credits"
+  },
+  "maccEligibility": {
+    "label": "Azure consumption commitment (MACC) burn-down eligibility",
+    "paygCredits": "verify",
+    "p3PrePurchase": "verify",
+    "capacityPacks": "no",
+    "foundryTokens": "verify",
+    "m365CopilotSeats": "no",
+    "note": "MACC treatment varies by agreement. Always confirm eligibility with your Microsoft account team before relying on burn-down.",
+    "verified": false,
+    "sourceUrl": "https://learn.microsoft.com/en-us/azure/cost-management-billing/manage/track-consumption-commitment"
+  },
+  "modelAssumptions": {
+    "businessDaysPerMonth": 21,
+    "hoursPerMonth": 730,
+    "businessHoursPerDay": 10,
+    "businessHoursDaysPerMonth": 21,
+    "escalatedCallHandleShare": 0.5,
+    "byomInputTokensPerGenerativeAnswer": 1500,
+    "byomOutputTokensPerGenerativeAnswer": 500,
+    "packSizingPercentile": 50,
+    "packSizingPercentileWhenVolatile": 25,
+    "maxAcceptableWastePct": 15,
+    "volatilityThreshold": 0.35,
+    "sensitivityPerturbationPct": 20,
+    "usageDistributionSigma": 1,
+    "confidenceMultipliers": {
+      "low": { "conservative": 0.6, "expected": 1, "aggressive": 2 },
+      "medium": { "conservative": 0.75, "expected": 1, "aggressive": 1.5 },
+      "high": { "conservative": 0.85, "expected": 1, "aggressive": 1.25 }
+    },
+    "githubPremiumRequestsPerHeavyUserPerMonth": 600,
+    "githubPremiumRequestsPerStandardUserPerMonth": 150,
+    "githubModelTierMultiplier": { "economy": 0.25, "standard": 1, "premium": 5 },
+    "kAnonymityMinimum": 5,
+    "outlierMaxMonthlyCredits": 500000000
+  }
+}
