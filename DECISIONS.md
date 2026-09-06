@@ -883,25 +883,60 @@ Investigated and found correct, recorded so it is not re-litigated:
     previous commit's writers: exactly the two new assertions fail and nothing
     else does.
 
-83. **A test extractor that under-reads weakens every assertion built on it.**
-    The reviewer found a bug in their own PDF extractor: the TJ-array pattern
-    accepted only integer kerning values, so any array containing a fractional
-    kern was discarded whole. They had been reading 81% of the document while
-    every assertion passed. It surfaced as a sentence missing its opening clause,
-    which could easily have been filed as a defect in the writer.
+83. **A test extractor that under-reads weakens every assertion built on it —
+    and my first attempt to prove ours safe was itself invalid.** The reviewer
+    found a bug in their own PDF extractor: the TJ-array pattern accepted only
+    integer kerning values, so any array containing a fractional kern was
+    discarded whole. They had been reading 81% of the document while every
+    assertion passed. It surfaced as a sentence missing its opening clause,
+    which could easily have been filed as a defect in this writer.
 
-    Ours was audited against that: the loosest possible hex extraction recovers
-    exactly the same characters as ours, and a TJ-array extraction that allows
-    decimals normalises to a byte-identical 21,164 characters, so no text is
-    being dropped. The 835-character difference between the two is the join
-    separator, one per TJ array, of which there are 836. This document happens to
-    contain no fractional kerns, so the reviewer's specific bug would not have
-    bitten here — which is luck, not design.
+    **What I recorded here first was wrong, on both halves.** I reported that
+    implementing their defect in our extractor changed nothing and concluded the
+    document contains no fractional kerns. Neither holds. The crippling edit was
+    a silent no-op — the replacement never applied — and measuring the document
+    directly settles it: **54 of its 836 TJ arrays carry a decimal kern**, for
+    example `<67616e69736174696f6e> 16.573938`. Replaying the defect properly
+    reads 17,023 of 21,164 characters, 80.4%, reproducing their 81% almost
+    exactly. The defect is live against this writer, not hypothetical.
 
-    The guard that was in place — "more than 200 characters extracted" — would
-    have passed a 99% under-read of a 24,000-character document, so it was
-    security theatre. Extraction is now a single helper that requires one canary
-    per page of the PDF and fails naming the page it lost. Crippling the
-    extractor to read only long hex runs makes it fail with "extraction is
-    partial — COPILOT CREDIT COMPASS is missing" rather than silently passing
-    weaker assertions.
+    The reason our extractor is immune is **structural, not empirical**: it
+    scans hex tokens across the whole inflated stream and never parses array
+    syntax, so no kern format can affect it. That immunity is a property of the
+    design, not of the document. If anyone ever "improves" it to parse TJ arrays
+    — to recover the word boundaries it currently squashes away — the immunity
+    disappears, and the guards below become the only thing between a partial read
+    and a false pass.
+
+    The reviewer also noted, correctly, that the "byte-identical after
+    normalisation" comparison recorded here was guaranteed by construction: any
+    two extractors capturing the same token set produce identical output once
+    whitespace is squashed. It confirmed agreement, not completeness.
+
+84. **Per-page canaries were not enough, and finding out why mattered more than
+    the wording fix.** The guard they replaced — "more than 200 characters
+    extracted" against a 24,000-character document — would have passed a 99%
+    under-read, so it was theatre. But testing the canaries against a *realistic*
+    partial read rather than a contrived one showed they were insufficient too:
+    under the reviewer's defect, 31% of text tokens vanish and **all ten canaries
+    still survive**, because page kickers are short strings that happen to sit in
+    integer-kern arrays. A guard that only fires on catastrophic failure does not
+    protect against the failure that actually occurs.
+
+    `pdfText` now carries a token-count invariant as the real guard: every hex
+    token inside a TJ array must appear in the output. Its array pattern is
+    deliberately permissive and never inspects kerning, so the formatting that
+    defeats a structure-parsing extractor cannot defeat the check on it. The
+    canaries are kept for the different failure they do catch — an extraction
+    that misses whole pages.
+
+    Proved against the real defect, with the crippled code confirmed present in
+    the file first, having been caught out once already:
+
+        extraction is partial — 2631 of 8489 text tokens were dropped
+        extraction is partial — 2598 of 9446 text tokens were dropped
+
+    The general lesson is the one this round keeps returning: a negative result
+    from a test you have not confirmed is running is not evidence of anything. I
+    accepted "7 tests still pass" as proof the document was clean, when it was
+    proof only that my edit had not taken effect.

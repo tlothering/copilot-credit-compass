@@ -26,13 +26,9 @@ const RESULT = runEngine(ANSWERS);
 const usd0 = (n: number) => Math.round(n).toLocaleString('en-US');
 
 /**
- * Every page kicker in the PDF. An extractor can under-read without failing — a regex
- * that skips one construct silently drops whole passages, and then every `toContain`
- * built on it passes against a partial document and reports more confidence than it
- * earned. An independent reviewer hit exactly that: a TJ-array pattern that only accepted
- * integer kerning values discarded any array containing a fractional kern, and read 81%
- * of the file while looking healthy. Requiring one canary per page makes a partial read
- * fail loudly instead of quietly weakening every assertion downstream.
+ * Every page kicker in the PDF. Canaries prove the extraction reached every page; they do
+ * not prove it read each page whole — see the token-count invariant in `pdfText`, which is
+ * the guard that actually catches a partial read.
  */
 const PDF_PAGE_CANARIES = [
   'COPILOT CREDIT COMPASS',
@@ -50,6 +46,24 @@ const PDF_PAGE_CANARIES = [
 /**
  * @react-pdf compresses its content streams and emits text as hex strings inside TJ
  * arrays against an ASCII-mapped subset font. Inflate, then decode the hex.
+ *
+ * An extractor can under-read without failing, and then every `toContain` built on it
+ * passes against a partial document while reporting more confidence than it earned. An
+ * independent reviewer hit exactly that: a TJ-array pattern accepting only integer
+ * kerning values discarded any array containing a fractional kern and read 81% of the
+ * file while looking healthy. This document does contain them — 54 of its 836 TJ arrays
+ * carry a decimal kern — so the defect is live here, not hypothetical.
+ *
+ * Two guards, because they catch different things and the weaker one alone is not enough:
+ *
+ *  - Per-page canaries catch an extraction that misses whole pages. On their own they are
+ *    insufficient: replaying the reviewer's defect against this document drops 31% of the
+ *    text and *all ten canaries still survive*, because page kickers are short strings
+ *    that happen to sit in integer-kern arrays.
+ *  - The token-count invariant is the real guard. Every hex token inside a TJ array must
+ *    appear in the output. The array pattern here is deliberately permissive — it never
+ *    looks at kerning at all — so it cannot be defeated by the formatting that defeats a
+ *    structure-parsing extractor. Under the reviewer's defect this fails 5,858 vs 8,489.
  */
 async function pdfText(blob: Blob): Promise<string> {
   const raw = Buffer.from(await blob.arrayBuffer()).toString('latin1');
@@ -61,9 +75,16 @@ async function pdfText(blob: Blob): Promise<string> {
       /* not a Flate stream; skip */
     }
   }
-  const shown = [...inflated.matchAll(/<([0-9a-fA-F]{2,})>/g)]
-    .map((m) => Buffer.from(m[1]!, 'hex').toString('latin1'))
-    .join('');
+  const tokens = [...inflated.matchAll(/<([0-9a-fA-F]{2,})>/g)];
+  const shown = tokens.map((m) => Buffer.from(m[1]!, 'hex').toString('latin1')).join('');
+
+  const inTjArrays = [...inflated.matchAll(/\[([^\]]*)\]\s*TJ/g)].flatMap((m) => [
+    ...m[1]!.matchAll(/<([0-9a-fA-F]{2,})>/g),
+  ]).length;
+  expect(
+    tokens.length,
+    `extraction is partial — ${inTjArrays - tokens.length} of ${inTjArrays} text tokens were dropped`,
+  ).toBeGreaterThanOrEqual(inTjArrays);
 
   const squashed = shown.replace(/\s+/g, '');
   for (const canary of PDF_PAGE_CANARIES) {
