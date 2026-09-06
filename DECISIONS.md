@@ -553,3 +553,104 @@ asserted against the wrong application. The port is now `E2E_PORT`, and a
 running server is only adopted when `E2E_REUSE_SERVER=1` says so explicitly. A
 suite that quietly tests someone else's app is worse than no suite, because it
 reports failures that are real and unrelated.
+
+## 10. Separating the two credit currencies
+
+Section 9 left a caveat: a GitHub AI credit and a Microsoft Copilot Credit both
+cost $0.01, so carrying GitHub overage at a 1:1 rate kept one clean credit
+column through the engine. That was convenient and wrong. Independent
+verification flagged the consequence, and it is worth stating plainly, because
+it produced a materially incorrect recommendation rather than a cosmetic one.
+
+**65. GitHub AI credits and Microsoft Copilot Credits are now separate
+currencies, and no Microsoft funding vehicle may claim to fund GitHub.**
+
+The defect: GitHub overage landed in the same `billableCredits` pool as
+Microsoft consumption. Every downstream consumer then treated it as Microsoft
+demand. A capacity pack was sized to cover it, a P3 pre-purchase tier was sized
+to discount it, and a MACC burn-down claimed credit for it. None of those
+vehicles can pay a bill GitHub raises. The tool was recommending an organisation
+spend money on an instrument that could not touch the cost it was bought for.
+
+Sub-decisions:
+
+- *The currency is declared in the rate card, not in TypeScript.* Every one of
+  the 18 `consumption` rows now carries a `currency`, and a new top-level
+  `creditCurrencies` block holds the unit price, the meter that raises the bill,
+  and `fundableBy` — the list of funding option ids that may fund it. The engine
+  derives eligibility from that list rather than hard-coding it, which keeps
+  funding policy as data, consistent with constraint C6. `github-ai-credit` has
+  `fundableBy: []`.
+- *`CreditModel`'s scalar totals are now Microsoft-only.* `billableCredits`,
+  `grossCredits`, `offsetCredits` and the `byWorkload` rollup count the
+  Microsoft meter alone. Every downstream consumer — scenario band, licence
+  break-even, all eight funding options, pack sizing — therefore became correct
+  with no change at the call sites. `lines` still carries every line so the UI
+  and the exports can show them; the split is exposed through `byCurrency`.
+- *GitHub overage is modelled as a platform cost line.* A platform line is
+  already defined as a cost common to every funding option that no vehicle can
+  alter, which is exactly the property GitHub overage has. Routing it there was
+  both the smallest change and the structurally correct one, and it means the
+  GitHub bill is charged identically under all eight options, so it can never
+  tip the recommendation.
+- *The rate card version moved to `v1.2`,* for the same reason as `v1.1`:
+  benchmark records stamp `rateCardVersion`, and estimates priced before and
+  after this correction are not comparable.
+- *`creditCurrencies[*].unitUsd` duplicates a price that also lives under
+  `commercial`.* That is deliberate — the engine wants one lookup — but
+  duplication drifts, so a rate-card test pins the two against each other. The
+  first version of this change had exactly that bug: `unitUsd` was set to the
+  whole `paygCreditUsd` rate object rather than its `.value`, which produced
+  `NaN` throughout. The property-based invariant harness caught it on the first
+  run, which is the argument for the harness.
+
+**66. Two defects that the currency split exposed rather than caused.**
+
+- *Capacity packs were floored at one pack even against zero demand.*
+  `Math.max(1, ceil(target / packSize))` is right for a customer with genuine
+  but negligible demand, and wrong for a customer with none. Before the split no
+  estate could have zero Microsoft demand while still having a bill, so the case
+  was unreachable; a GitHub-only estate reaches it. It now buys nothing when
+  annual demand is zero, and the test that asserted the old behaviour has been
+  re-pointed at a genuinely negligible — but non-zero — estate, preserving its
+  original intent.
+- *"Do nothing" reported $0 against a real bill, and won.* Declining to fund is
+  a real choice about Microsoft credits and Microsoft seats. It is not a choice
+  about GitHub AI credit overage, which is enabled by default and bills against
+  seats already held. Zeroing it made an unavoidable cost look like a saving and
+  handed "do nothing" an unearned first place on a GitHub-only estate. It now
+  carries the unfundable other-meter lines, and it is disqualified when there is
+  demand on any meter, not only the Microsoft one.
+
+**67. The XLSX CreditModel total priced GitHub credits at Microsoft rates.**
+The sheet summed every credit line into one total and then multiplied it by the
+Microsoft pay-as-you-go and capacity-pack rates to derive cost and break-even.
+With a GitHub line in that total the derived figures were simply wrong — in a
+spreadsheet a customer takes to their finance team. The sheet is now split into
+per-meter blocks: only the Microsoft block feeds the total that gets priced, and
+other meters get their own labelled subtotal below it. The regression test reads
+the workbook back and asserts the summed range spans exactly the Microsoft lines;
+reverting the fix makes it fail, so it is not vacuous.
+
+**68. A property-based invariant harness now guards the engine.**
+`tests/unit/engine/invariants.test.ts` generates schema-valid random `Answers`
+from a seeded PRNG and asserts roughly thirty accounting identities against each
+result, plus a deep scan for non-finite numbers and a check that every audit
+`rateCardRef` resolves to a real path in the card. It found three defects on its
+first run, two of them real:
+
+- `recommendation.*.score` was `Infinity` for disqualified options. `Infinity`
+  does not survive `JSON.stringify` — it becomes `null`. It did not cross a JSON
+  boundary today, so this was a latent hazard rather than a live bug, but the
+  sentinel is gone: the score stays finite and real, and a new `blocked` flag
+  sorts disqualified options last.
+- An audit entry referenced `commercial.m365CopilotSeat`, which does not exist
+  in the card. That one was live and user-visible: `rateCardRef` is rendered in
+  the results audit trail and in the XLSX AuditTrail sheet. Corrected to
+  `commercial.m365CopilotSeatMonthlyUsd`.
+
+The third was a false alarm worth recording. An assertion that a targeted
+licence shift never removes more credits than are offsettable fired on about 30
+of 2,000 seeds. Instrumenting it to print magnitudes showed a relative
+difference of 1.2e-16 — one double ULP. The tolerance was wrong, not the engine.
+The lesson is to measure the size of a discrepancy before calling it a defect.

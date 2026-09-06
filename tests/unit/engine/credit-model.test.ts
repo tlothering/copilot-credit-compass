@@ -215,7 +215,9 @@ describe('credit model audit trail', () => {
       expect(entry!.formula).toContain('billable =');
       expect(entry!.rateCardRef).toBe(`consumption.${l.rateId}`);
       expect(entry!.output).toBe(l.billableCredits);
-      expect(entry!.outputUnit).toBe('credits/month');
+      // The unit names the meter, so a reader can never mistake a GitHub AI credit
+      // for a Microsoft Copilot Credit in the audit trail.
+      expect(entry!.outputUnit).toBe(`${card.creditCurrencies[l.currency].label}s/month`);
     }
     const total = trail.entries.find((e) => e.step === 'credits:total');
     expect(total?.output).toBe(model.billableCredits);

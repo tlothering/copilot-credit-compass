@@ -1,10 +1,15 @@
 {
-  "version": "v1.1",
+  "version": "v1.2",
   "effectiveDate": "2026-01-01",
   "currency": "USD",
   "title": "Copilot Credit Compass rate card",
   "disclaimer": "Independent planning rate card. Not affiliated with, endorsed by, or a pricing quotation from Microsoft. Rows marked verified:false are market-observed or interpolated and must be confirmed with your Microsoft account team before purchase.",
   "changelog": [
+    {
+      "version": "v1.2",
+      "date": "2026-09-06",
+      "summary": "Separated the two credit currencies. GitHub AI credits and Microsoft Copilot Credits share a .01 unit price but are different meters, and the previous model summed them into one billable-credit pool. That let the funding engine offer a capacity pack, a pre-purchase tier, a MACC burn-down or an Azure prepayment against GitHub overage that none of those vehicles can fund. Every consumption row now declares its currency, the cost model aggregates the two pools separately, and GitHub overage is costed on the GitHub meter as a platform cost common to every funding option."
+    },
     {
       "version": "v1",
       "date": "2026-01-01",
@@ -20,6 +25,7 @@
     "classic-answer": {
       "label": "Classic answer",
       "credits": 1,
+      "currency": "microsoft-copilot-credit",
       "unit": "answer",
       "displayRate": "1 credit per classic answer",
       "offsetByM365CopilotLicence": true,
@@ -29,6 +35,7 @@
     "generative-answer": {
       "label": "Generative answer",
       "credits": 2,
+      "currency": "microsoft-copilot-credit",
       "unit": "answer",
       "displayRate": "2 credits per generative answer",
       "offsetByM365CopilotLicence": true,
@@ -38,6 +45,7 @@
     "agent-action": {
       "label": "Agent action",
       "credits": 5,
+      "currency": "microsoft-copilot-credit",
       "unit": "action",
       "displayRate": "5 credits per agent action",
       "offsetByM365CopilotLicence": true,
@@ -47,6 +55,7 @@
     "tenant-graph-grounding": {
       "label": "Tenant Microsoft Graph grounding",
       "credits": 10,
+      "currency": "microsoft-copilot-credit",
       "unit": "message",
       "displayRate": "10 credits per grounded message",
       "offsetByM365CopilotLicence": true,
@@ -56,6 +65,7 @@
     "agent-flow-action": {
       "label": "Agent flow action",
       "credits": 0.13,
+      "currency": "microsoft-copilot-credit",
       "unit": "action",
       "displayRate": "13 credits per 100 agent flow actions",
       "offsetByM365CopilotLicence": true,
@@ -65,6 +75,7 @@
     "ai-tools-basic-response": {
       "label": "Text and generative AI tools - basic (per response)",
       "credits": 0.1,
+      "currency": "microsoft-copilot-credit",
       "unit": "response",
       "displayRate": "1 credit per 10 responses",
       "offsetByM365CopilotLicence": true,
@@ -74,6 +85,7 @@
     "ai-tools-standard-response": {
       "label": "Text and generative AI tools - standard (per response)",
       "credits": 1.5,
+      "currency": "microsoft-copilot-credit",
       "unit": "response",
       "displayRate": "15 credits per 10 responses",
       "offsetByM365CopilotLicence": true,
@@ -83,6 +95,7 @@
     "ai-tools-premium-response": {
       "label": "Text and generative AI tools - premium (per response)",
       "credits": 10,
+      "currency": "microsoft-copilot-credit",
       "unit": "response",
       "displayRate": "100 credits per 10 responses",
       "offsetByM365CopilotLicence": true,
@@ -92,6 +105,7 @@
     "ai-tools-basic-tokens": {
       "label": "Text and generative AI tools - basic (per 1K tokens)",
       "credits": 0.1,
+      "currency": "microsoft-copilot-credit",
       "unit": "1K tokens",
       "displayRate": "0.1 credits per 1,000 tokens",
       "offsetByM365CopilotLicence": true,
@@ -101,6 +115,7 @@
     "ai-tools-standard-tokens": {
       "label": "Text and generative AI tools - standard (per 1K tokens)",
       "credits": 1.5,
+      "currency": "microsoft-copilot-credit",
       "unit": "1K tokens",
       "displayRate": "1.5 credits per 1,000 tokens",
       "offsetByM365CopilotLicence": true,
@@ -110,6 +125,7 @@
     "ai-tools-premium-tokens": {
       "label": "Text and generative AI tools - premium (per 1K tokens)",
       "credits": 10,
+      "currency": "microsoft-copilot-credit",
       "unit": "1K tokens",
       "displayRate": "10 credits per 1,000 tokens",
       "offsetByM365CopilotLicence": true,
@@ -119,6 +135,7 @@
     "content-processing-page": {
       "label": "Content processing tools",
       "credits": 8,
+      "currency": "microsoft-copilot-credit",
       "unit": "page or image",
       "displayRate": "8 credits per page or image",
       "offsetByM365CopilotLicence": true,
@@ -128,6 +145,7 @@
     "voice-classic-minute": {
       "label": "Voice - classic orchestration",
       "credits": 10,
+      "currency": "microsoft-copilot-credit",
       "unit": "minute",
       "displayRate": "10 credits per minute",
       "offsetByM365CopilotLicence": false,
@@ -138,6 +156,7 @@
     "voice-genai-minute": {
       "label": "Voice - GenAI",
       "credits": 35,
+      "currency": "microsoft-copilot-credit",
       "unit": "minute",
       "displayRate": "35 credits per minute",
       "offsetByM365CopilotLicence": false,
@@ -147,6 +166,7 @@
     "voice-premium-genai-minute": {
       "label": "Voice - Premium GenAI",
       "credits": 75,
+      "currency": "microsoft-copilot-credit",
       "unit": "minute",
       "displayRate": "75 credits per minute",
       "offsetByM365CopilotLicence": false,
@@ -156,6 +176,7 @@
     "retrieval-api-query": {
       "label": "Microsoft 365 Copilot Retrieval API query (preview)",
       "credits": 3,
+      "currency": "microsoft-copilot-credit",
       "unit": "query",
       "displayRate": "3 credits per retrieval query",
       "offsetByM365CopilotLicence": false,
@@ -166,6 +187,7 @@
     "cowork-task": {
       "label": "Copilot Cowork / Work IQ API task",
       "credits": 30,
+      "currency": "microsoft-copilot-credit",
       "unit": "task",
       "displayRate": "30 credits per completed task",
       "offsetByM365CopilotLicence": false,
@@ -177,6 +199,7 @@
     "github-ai-credit": {
       "label": "GitHub Copilot AI credit",
       "credits": 1,
+      "currency": "github-ai-credit",
       "unit": "AI credit",
       "displayRate": "1 AI credit = $0.01, the same unit price as a pay-as-you-go Copilot Credit",
       "offsetByM365CopilotLicence": false,
@@ -239,7 +262,10 @@
       "userLevelBudgetsCanHaltIndividual": true,
       "codeCompletionsBilled": false,
       "nextEditSuggestionsBilled": false,
-      "unlimitedOnPaidPlans": ["code completions", "next edit suggestions"],
+      "unlimitedOnPaidPlans": [
+        "code completions",
+        "next edit suggestions"
+      ],
       "billedFeatures": [
         "Copilot Chat",
         "Copilot CLI",
@@ -336,14 +362,43 @@
     "deductedFromAzurePrepaymentBalance": false,
     "separateInvoiceLineItem": true,
     "overageFallsBackToPayg": true,
-    "scopes": ["resourceGroup", "subscription", "shared", "managementGroup"],
+    "scopes": [
+      "resourceGroup",
+      "subscription",
+      "shared",
+      "managementGroup"
+    ],
     "tiers": [
-      { "commitUnits": 5000, "discountPct": 3, "verified": false },
-      { "commitUnits": 15000, "discountPct": 6, "verified": true },
-      { "commitUnits": 50000, "discountPct": 10, "verified": false },
-      { "commitUnits": 150000, "discountPct": 14, "verified": false },
-      { "commitUnits": 500000, "discountPct": 17, "verified": false },
-      { "commitUnits": 1500000, "discountPct": 20, "verified": false }
+      {
+        "commitUnits": 5000,
+        "discountPct": 3,
+        "verified": false
+      },
+      {
+        "commitUnits": 15000,
+        "discountPct": 6,
+        "verified": true
+      },
+      {
+        "commitUnits": 50000,
+        "discountPct": 10,
+        "verified": false
+      },
+      {
+        "commitUnits": 150000,
+        "discountPct": 14,
+        "verified": false
+      },
+      {
+        "commitUnits": 500000,
+        "discountPct": 17,
+        "verified": false
+      },
+      {
+        "commitUnits": 1500000,
+        "discountPct": 20,
+        "verified": false
+      }
     ],
     "note": "Purchased CCCUs pay down qualifying Copilot Credit retail cost in USD, where 1 CU is approximately $1 of retail cost. Only the 15,000 CU tier discount is published; the remaining ladder is interpolated toward the stated approx. 20 percent ceiling.",
     "sourceUrl": "https://learn.microsoft.com/en-us/azure/cost-management-billing/reservations/prepay-copilot-credits"
@@ -374,15 +429,59 @@
     "sensitivityPerturbationPct": 20,
     "usageDistributionSigma": 1,
     "confidenceMultipliers": {
-      "low": { "conservative": 0.6, "expected": 1, "aggressive": 2 },
-      "medium": { "conservative": 0.75, "expected": 1, "aggressive": 1.5 },
-      "high": { "conservative": 0.85, "expected": 1, "aggressive": 1.25 }
+      "low": {
+        "conservative": 0.6,
+        "expected": 1,
+        "aggressive": 2
+      },
+      "medium": {
+        "conservative": 0.75,
+        "expected": 1,
+        "aggressive": 1.5
+      },
+      "high": {
+        "conservative": 0.85,
+        "expected": 1,
+        "aggressive": 1.25
+      }
     },
     "githubAiCreditsPerHeavyUserPerMonth": 3500,
     "githubAiCreditsPerStandardUserPerMonth": 700,
     "githubAiCreditAssumptionNote": "Planning placeholders, not GitHub figures. Built from the interactionArchetypes in commercial.githubCopilot at their typical values: a standard developer at roughly 60 chats (3 credits) plus 20 scoped agent tasks (25 credits) lands near 700; a heavy developer at roughly 150 chats, 80 agent tasks and 6 long frontier-model sessions (180 credits) lands near 3,500. Code completions and next edit suggestions are excluded because they are unlimited and never billed on paid plans. Replace both figures from your own GitHub billing usage page before quoting anything.",
-    "githubModelTierMultiplier": { "economy": 0.25, "standard": 1, "premium": 5 },
+    "githubModelTierMultiplier": {
+      "economy": 0.25,
+      "standard": 1,
+      "premium": 5
+    },
     "kAnonymityMinimum": 5,
     "outlierMaxMonthlyCredits": 500000000
+  },
+  "creditCurrencies": {
+    "microsoft-copilot-credit": {
+      "label": "Microsoft Copilot Credit",
+      "unitUsd": 0.01,
+      "meter": "Microsoft",
+      "meterNote": "Billed by Microsoft against the tenant. This is the pool that capacity packs, the pre-purchase plan, a MACC burn-down and an Azure prepayment can all fund.",
+      "fundableBy": [
+        "payg",
+        "packs-only",
+        "packs-plus-payg",
+        "p3-plus-payg",
+        "p3-packs-payg",
+        "licence-shift",
+        "byom-foundry"
+      ],
+      "verified": true,
+      "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-copilot-studio/billing-license-management"
+    },
+    "github-ai-credit": {
+      "label": "GitHub AI credit",
+      "unitUsd": 0.01,
+      "meter": "GitHub",
+      "meterNote": "Billed by GitHub against the organisation or enterprise usage-based billing account. No Microsoft funding vehicle can pay for it: not a Copilot Studio capacity pack, not the pre-purchase plan, not a MACC burn-down and not an Azure prepayment.",
+      "fundableBy": [],
+      "verified": true,
+      "sourceUrl": "https://docs.github.com/en/copilot/concepts/billing/organizations-and-enterprises/usage-based-billing"
+    }
   }
 }

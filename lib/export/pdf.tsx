@@ -342,9 +342,20 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
           rows={[
             ['Gross credits generated', int(credits.grossCredits)],
             ['Less: offset by Microsoft 365 Copilot licences', `−${int(credits.offsetCredits)}`],
-            ['Billable credits', int(credits.billableCredits)],
+            ['Billable Copilot Credits (Microsoft meter)', int(credits.billableCredits)],
             ['— internal', int(credits.internalBillableCredits)],
             ['— external / customer-facing (never offsettable)', int(credits.externalBillableCredits)],
+            ...(credits.otherMeterBillableCredits > 0
+              ? credits.byCurrency
+                  .filter((c) => c.currency !== 'microsoft-copilot-credit')
+                  .map(
+                    (c) =>
+                      [`${c.label}s — billed by ${c.meter}, not fundable by any Microsoft vehicle`, int(c.billableCredits)] as [
+                        string,
+                        string,
+                      ],
+                  )
+              : []),
           ]}
         />
 
@@ -384,9 +395,9 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
         <Text style={s.kicker}>TECHNICAL APPENDIX</Text>
         <Text style={s.h2}>Volume to credits, per workload</Text>
         <Table
-          cols={['Workload', 'Driver', 'Units/mo', 'Cr/unit', 'Gross', 'Offset', 'Billable']}
-          widths={[18, 26, 12, 9, 12, 11, 12]}
-          aligns={['left', 'left', 'right', 'right', 'right', 'right', 'right']}
+          cols={['Workload', 'Driver', 'Units/mo', 'Cr/unit', 'Gross', 'Offset', 'Billable', 'Meter']}
+          widths={[16, 22, 11, 8, 11, 10, 11, 11]}
+          aligns={['left', 'left', 'right', 'right', 'right', 'right', 'right', 'left']}
           rows={credits.lines.map((l) => [
             workloadMeta(l.workloadId).label,
             l.label,
@@ -395,6 +406,7 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
             int(l.grossCredits),
             int(l.offsetCredits),
             int(l.billableCredits),
+            l.currency === 'microsoft-copilot-credit' ? 'Microsoft' : 'GitHub',
           ])}
         />
 

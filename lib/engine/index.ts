@@ -80,7 +80,7 @@ export function runCore(answers: Answers, card: RateCard): CoreResult {
     },
     shiftFactor,
     'factor',
-    'commercial.m365CopilotSeat',
+    'commercial.m365CopilotSeatMonthlyUsd',
   );
 
   // Variant B — generative answers served from a Foundry deployment (BYOM).

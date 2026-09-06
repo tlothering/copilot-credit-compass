@@ -322,6 +322,16 @@ export default function MethodologyPage() {
                     {card.commercial.githubCopilot.promotionalAllowance.endDate} and has expired.
                   </li>
                 ) : null}
+                <li>
+                  <strong className="font-medium text-fg">
+                    These are GitHub AI credits, not Microsoft Copilot Credits.
+                  </strong>{' '}
+                  They bill on GitHub&rsquo;s own meter. This tool keeps the two pools apart and
+                  never adds them together, because no Microsoft purchasing vehicle — capacity
+                  pack, pre-purchase tier, MACC burn-down or Azure prepayment — can fund a GitHub
+                  bill. Any GitHub overage is therefore charged identically under every funding
+                  option, so it never changes which option we recommend.
+                </li>
               </ul>
               <div className="mt-3 flex items-center gap-2 text-xs">
                 <VerifiedChip verified={card.commercial.githubCopilot.verified} />

@@ -244,10 +244,16 @@ export function buildRecommendation(
   });
 
   /* ---- "Do nothing" never wins while there is real demand -------- */
-  if (annualDemand > 0) {
+  // Demand on another meter counts too. A GitHub-only estate has no Microsoft credit
+  // demand at all, yet still has a bill that no funding decision here avoids — so
+  // "do nothing" must not be allowed to win it by default.
+  const unavoidableSpend = byId.get('do-nothing')?.twelveMonthTotalUsd ?? 0;
+  if (annualDemand > 0 || unavoidableSpend > 0) {
     disqualified.set(
       'do-nothing',
-      'You have modelled real demand, so declining to fund it is a baseline for comparison rather than a plan.',
+      annualDemand > 0
+        ? 'You have modelled real demand, so declining to fund it is a baseline for comparison rather than a plan.'
+        : 'Your modelled consumption bills on a meter no funding decision here controls, so doing nothing is an unbudgeted invoice rather than a saving.',
     );
   }
 
@@ -255,12 +261,14 @@ export function buildRecommendation(
   const ranked: RankedOption[] = options
     .map((option) => {
       const blocked = disqualified.has(option.id) || !option.eligible;
-      const score = blocked
-        ? Number.POSITIVE_INFINITY
-        : option.twelveMonthTotalUsd * (multipliers.get(option.id) ?? 1);
+      // The score stays finite even when the option is ruled out. Infinity does not
+      // survive JSON.stringify — it silently becomes null — and a disqualified option
+      // still has a real cost that is worth showing next to the ones in contention.
+      const score = option.twelveMonthTotalUsd * (multipliers.get(option.id) ?? 1);
       return { option, score, blocked };
     })
     .sort((a, b) => {
+      if (a.blocked !== b.blocked) return a.blocked ? 1 : -1;
       if (a.score !== b.score) return a.score - b.score;
       return a.option.twelveMonthTotalUsd - b.option.twelveMonthTotalUsd;
     })
@@ -273,6 +281,7 @@ export function buildRecommendation(
         ? (disqualified.get(option.id) ?? option.ineligibleReasons[0] ?? 'Not applicable.')
         : `${option.bestWhen} ${option.avoidWhen}`,
       score,
+      blocked,
     }));
 
   const primary = ranked[0] ?? {
@@ -282,6 +291,7 @@ export function buildRecommendation(
     deltaVsPrimaryUsd: 0,
     tradeOff: 'No option could be evaluated.',
     score: 0,
+    blocked: true,
   };
 
   for (const entry of ranked) {
@@ -298,7 +308,7 @@ export function buildRecommendation(
 
   audit.record(
     'recommendation:primary',
-    'score = twelveMonthTotalUsd × Π(ruleMultipliers); disqualified options score Infinity; lowest score wins.',
+    'score = twelveMonthTotalUsd × Π(ruleMultipliers); disqualified options are ranked last; lowest score among the remaining options wins.',
     {
       primary: primary.optionId,
       primaryTotalUsd: primary.twelveMonthTotalUsd,

@@ -200,23 +200,38 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
   /* ------------------------------------------------ 3 — Where it goes */
   const s3 = p.addSlide({ masterName: 'CCC' });
   title(s3, 'Where the money goes', 'From raw activity to billable credits');
+  const flowRows: string[][] = [
+    ['Gross credits generated', int(credits.grossCredits), money(credits.grossCredits * cost.effectiveUsdPerCredit)],
+    ['Less: Microsoft 365 Copilot licence offset', `−${int(credits.offsetCredits)}`, `−${money(credits.offsetCredits * cost.effectiveUsdPerCredit)}`],
+    ['Billable Copilot Credits (Microsoft meter)', int(credits.billableCredits), money(cost.meteredCreditCostUsd)],
+    ['  of which internal', int(credits.internalBillableCredits), ''],
+    ['  of which customer-facing', int(credits.externalBillableCredits), ''],
+    ['Platform and seat costs', '—', money(cost.platformMonthlyUsd)],
+  ];
+  // Broken out as a sub-line of platform cost, where it is already counted — it bills on
+  // its own meter and no Microsoft funding vehicle can pay it.
+  if (credits.otherMeterCostUsd > 0) {
+    for (const c of credits.byCurrency) {
+      if (c.currency === 'microsoft-copilot-credit') continue;
+      flowRows.push([
+        `  of which ${c.label}s, billed by ${c.meter}`,
+        int(c.billableCredits),
+        money(c.billableCostUsd),
+      ]);
+    }
+  }
+  flowRows.push(['Total monthly', '', money(cost.totalMonthlyUsd)]);
+  const billableIdx = 2;
+  const totalIdx = flowRows.length - 1;
   s3.addTable(
     [
       head(['Stage', 'Credits / month', 'At effective rate']),
-      ...[
-        ['Gross credits generated', int(credits.grossCredits), money(credits.grossCredits * cost.effectiveUsdPerCredit)],
-        ['Less: Microsoft 365 Copilot licence offset', `−${int(credits.offsetCredits)}`, `−${money(credits.offsetCredits * cost.effectiveUsdPerCredit)}`],
-        ['Billable credits', int(credits.billableCredits), money(cost.meteredCreditCostUsd)],
-        ['  of which internal', int(credits.internalBillableCredits), ''],
-        ['  of which customer-facing', int(credits.externalBillableCredits), ''],
-        ['Platform and seat costs', '—', money(cost.platformMonthlyUsd)],
-        ['Total monthly', '', money(cost.totalMonthlyUsd)],
-      ].map((r, i) =>
+      ...flowRows.map((r, i) =>
         r.map((t, ci) => ({
           text: t,
           options: {
-            bold: i === 6 || i === 2,
-            color: i === 6 ? ACCENT : INK,
+            bold: i === totalIdx || i === billableIdx,
+            color: i === totalIdx ? ACCENT : INK,
             align: ci === 0 ? ('left' as const) : ('right' as const),
             fontSize: 10,
           },

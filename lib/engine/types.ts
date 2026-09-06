@@ -11,9 +11,36 @@ export type { Answers };
 /* Rate card                                                           */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Credit currencies                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Two different things are called a "credit" in this problem space, and they are not
+ * interchangeable. A Microsoft Copilot Credit is billed by Microsoft against the tenant
+ * and can be funded by a capacity pack, the pre-purchase plan, a MACC burn-down or an
+ * Azure prepayment. A GitHub AI credit is billed by GitHub against the organisation's
+ * usage-based billing account and none of those vehicles can pay for it. They happen to
+ * share a $0.01 unit price, which is exactly why conflating them is easy and wrong.
+ */
+export type CreditCurrencyId = 'microsoft-copilot-credit' | 'github-ai-credit';
+
+export interface CreditCurrency {
+  label: string;
+  unitUsd: number;
+  meter: string;
+  meterNote: string;
+  /** Funding option ids that can pay for this currency. Empty means "its own meter only". */
+  fundableBy: FundingOptionId[];
+  verified: boolean;
+  sourceUrl: string;
+}
+
 export interface ConsumptionRate {
   label: string;
   credits: number;
+  /** Which meter this rate is billed against. See {@link CreditCurrencyId}. */
+  currency: CreditCurrencyId;
   unit: string;
   displayRate: string;
   offsetByM365CopilotLicence: boolean;
@@ -229,6 +256,7 @@ export interface RateCard {
   disclaimer: string;
   changelog: { version: string; date: string; summary: string }[];
   consumption: Record<ConsumptionRateId, ConsumptionRate>;
+  creditCurrencies: Record<CreditCurrencyId, CreditCurrency>;
   commercial: {
     paygCreditUsd: SimpleCommercialRate;
     capacityPack: CapacityPackRate;
@@ -307,6 +335,8 @@ export interface VolumeModel {
 
 export interface CreditLine extends VolumeLine {
   creditsPerUnit: number;
+  /** Which meter these credits are billed against. */
+  currency: CreditCurrencyId;
   grossCredits: number;
   offsetEligible: boolean;
   offsetShare: number;
@@ -314,6 +344,25 @@ export interface CreditLine extends VolumeLine {
   billableCredits: number;
 }
 
+export interface CurrencyTotals {
+  currency: CreditCurrencyId;
+  label: string;
+  meter: string;
+  unitUsd: number;
+  grossCredits: number;
+  offsetCredits: number;
+  billableCredits: number;
+  billableCostUsd: number;
+  /** Funding options that can pay for this pool. Empty means "its own meter only". */
+  fundableBy: FundingOptionId[];
+}
+
+/**
+ * Every scalar total on this model is scoped to **Microsoft Copilot Credits**, because
+ * that is the pool the funding options actually size against. Credits billed on another
+ * meter — today only GitHub AI credits — are held in {@link CreditModel.byCurrency} and
+ * costed separately, so no Microsoft funding vehicle can be offered against them.
+ */
 export interface CreditModel {
   lines: CreditLine[];
   grossCredits: number;
@@ -324,6 +373,11 @@ export interface CreditModel {
   /** Credits that would be zero-rated if every internal user held a licence. */
   offsettableRemainingCredits: number;
   byWorkload: { workloadId: WorkloadId; grossCredits: number; billableCredits: number }[];
+  /** Per-meter totals, including the Microsoft pool above. */
+  byCurrency: CurrencyTotals[];
+  /** Billable credits on meters other than Microsoft's, and what they cost there. */
+  otherMeterBillableCredits: number;
+  otherMeterCostUsd: number;
 }
 
 export interface CreditModelOptions {
@@ -465,6 +519,8 @@ export interface FundingOption {
   cashFlowShape: CashFlowShape;
   commitmentLockInMonths: number;
   maccEligibility: MaccEligibilityValue;
+  /** Credit currencies this option is actually able to fund. */
+  fundsCurrencies: CreditCurrencyId[];
   reversibility: Reversibility;
   bestWhen: string;
   avoidWhen: string;
@@ -503,7 +559,14 @@ export interface RankedOption {
   twelveMonthTotalUsd: number;
   deltaVsPrimaryUsd: number;
   tradeOff: string;
+  /**
+   * Economic score: the 12-month total weighted by the recommendation rules. Always
+   * finite, so the result survives JSON serialisation intact. Disqualified options keep
+   * their real score and are ranked last via `blocked` rather than by a sentinel value.
+   */
   score: number;
+  /** True when a rule or an eligibility check rules this option out entirely. */
+  blocked: boolean;
 }
 
 export interface Recommendation {

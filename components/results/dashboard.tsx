@@ -114,9 +114,9 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
               sub={primary ? `${usd(primary.effectiveUsdPerCredit, true)} effective per credit` : undefined}
             />
             <Stat
-              label="Billable credits / month"
+              label="Billable Copilot Credits / month"
               value={num(credits.billableCredits)}
-              sub={`${num(credits.grossCredits)} gross, ${num(credits.offsetCredits)} offset`}
+              sub={`${num(credits.grossCredits)} gross, ${num(credits.offsetCredits)} offset — Microsoft meter only`}
             />
             <Stat
               label="Expected monthly cost"
@@ -140,6 +140,61 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
       </section>
 
       <ExportBar result={result} />
+
+      {credits.byCurrency.length > 1 ? (
+        <Card>
+          <h2 className="text-lg font-medium text-fg">Two credit meters, billed separately</h2>
+          <p className="mt-2 max-w-3xl text-sm text-fg-muted">
+            Your estate consumes credits on more than one meter. They are priced the same but they
+            are not the same currency, and no Microsoft purchasing vehicle — capacity pack,
+            pre-purchase tier, MACC burn-down or Azure prepayment — can pay a bill raised on another
+            meter. Everything below the Microsoft line is charged identically under every funding
+            option on this page, so it never changes which option wins.
+          </p>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full min-w-[36rem] text-left text-sm">
+              <caption className="sr-only">
+                Monthly billable credits and cost, split by billing meter
+              </caption>
+              <thead>
+                <tr className="border-b border-line text-xs uppercase tracking-wide text-fg-subtle">
+                  <th scope="col" className="py-2 pr-4 font-medium">Credit currency</th>
+                  <th scope="col" className="py-2 pr-4 font-medium">Billed by</th>
+                  <th scope="col" className="py-2 pr-4 text-right font-medium">Credits / month</th>
+                  <th scope="col" className="py-2 pr-4 text-right font-medium">Cost / month</th>
+                  <th scope="col" className="py-2 font-medium">Fundable by a Microsoft vehicle?</th>
+                </tr>
+              </thead>
+              <tbody>
+                {credits.byCurrency.map((c) => (
+                  <tr key={c.currency} className="border-b border-line/50 last:border-0">
+                    <th scope="row" className="py-2 pr-4 font-normal text-fg">{c.label}</th>
+                    <td className="py-2 pr-4 text-fg-muted">{c.meter}</td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-fg">
+                      {num(c.billableCredits)}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums text-fg">
+                      {usd(c.billableCostUsd)}
+                    </td>
+                    <td className="py-2 text-fg-muted">
+                      {c.fundableBy.length > 0 ? 'Yes' : 'No — pay-as-you-go on its own meter'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {credits.byCurrency.some((c) => c.currency === 'github-ai-credit') ? (
+            <p className="mt-4 rounded-field border border-info/40 bg-info-quiet px-3 py-2 text-xs text-fg-muted">
+              <strong className="font-medium text-fg">Code completions are free.</strong> On paid
+              GitHub Copilot plans, code completions and next edit suggestions are unlimited and
+              never consume AI credits. Only Copilot Chat, Copilot CLI, the cloud agent, Spaces,
+              Spark and third-party coding agents draw on the allowance — so the figure above counts
+              those alone.
+            </p>
+          ) : null}
+        </Card>
+      ) : null}
 
       {/* ------------------------------------------------- Why this */}
       <Card>
@@ -196,13 +251,21 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
             rows: [
               ['Gross credits generated', Math.round(credits.grossCredits)],
               ['Offset by M365 Copilot licences', -Math.round(credits.offsetCredits)],
-              ['Billable credits', Math.round(credits.billableCredits)],
+              ['Billable Copilot Credits (Microsoft meter)', Math.round(credits.billableCredits)],
               ['— of which internal', Math.round(credits.internalBillableCredits)],
               ['— of which external / customer-facing', Math.round(credits.externalBillableCredits)],
               [
                 'Still offsettable if every internal user were licensed',
                 Math.round(credits.offsettableRemainingCredits),
               ],
+              ...(credits.otherMeterBillableCredits > 0
+                ? ([
+                    [
+                      'Billed on another meter (not Microsoft Copilot Credits)',
+                      Math.round(credits.otherMeterBillableCredits),
+                    ],
+                  ] as Array<[string, number]>)
+                : []),
             ],
           }}
         >

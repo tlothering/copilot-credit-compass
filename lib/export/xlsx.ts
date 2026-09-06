@@ -348,8 +348,14 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
     'Billable credits',
   ]);
 
-  const credStart = creditsWs.rowCount + 1;
-  for (const line of result.credits.lines) {
+  // The sheet is split by billing meter. Only the Microsoft block feeds the Total row,
+  // because every derived figure below it (pay-as-you-go cost, capacity pack cost,
+  // licence break-even) is priced with Microsoft rates. Summing a GitHub AI credit into
+  // that total and then multiplying by the Microsoft pack rate would be simply wrong.
+  const msLines = result.credits.lines.filter((l) => l.currency === 'microsoft-copilot-credit');
+  const otherLines = result.credits.lines.filter((l) => l.currency !== 'microsoft-copilot-credit');
+
+  const addCreditRow = (line: (typeof result.credits.lines)[number]) => {
     const vRow = volRowOf.get(line.lineId);
     const r = creditsWs.addRow([
       workloadMeta(line.workloadId).label,
@@ -377,11 +383,14 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
     r.getCell(8).value = { formula: `E${n}-G${n}`, date1904: false };
     r.getCell(8).numFmt = INT;
     r.getCell(8).font = { bold: true };
-  }
+  };
+
+  const credStart = creditsWs.rowCount + 1;
+  for (const line of msLines) addCreditRow(line);
   const credEnd = creditsWs.rowCount;
   zebra(creditsWs, credStart, credEnd);
 
-  const credTotal = creditsWs.addRow(['Total', '', null, '', null, '', null, null]);
+  const credTotal = creditsWs.addRow(['Total (Microsoft Copilot Credits)', '', null, '', null, '', null, null]);
   credTotal.font = { bold: true };
   const ct = credTotal.number;
   credTotal.getCell(3).value = agg('SUM', 'C', credStart, credEnd);
@@ -389,6 +398,36 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
   credTotal.getCell(7).value = agg('SUM', 'G', credStart, credEnd);
   credTotal.getCell(8).value = agg('SUM', 'H', credStart, credEnd);
   [3, 5, 7, 8].forEach((c) => (credTotal.getCell(c).numFmt = INT));
+
+  if (otherLines.length > 0) {
+    creditsWs.addRow([]);
+    const banner = creditsWs.addRow([
+      'Billed on another meter — excluded from the total above',
+      'No Microsoft capacity pack, pre-purchase tier, MACC or Azure prepayment can fund these.',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+    ]);
+    banner.font = { bold: true, italic: true };
+    const otherStart = creditsWs.rowCount + 1;
+    for (const line of otherLines) addCreditRow(line);
+    const otherEnd = creditsWs.rowCount;
+    zebra(creditsWs, otherStart, otherEnd);
+    for (const bucket of result.credits.byCurrency) {
+      if (bucket.currency === 'microsoft-copilot-credit') continue;
+      const t = creditsWs.addRow([`Total (${bucket.label}s)`, `Billed by ${bucket.meter}`, null, '', null, '', null, null]);
+      t.font = { bold: true };
+      t.getCell(3).value = agg('SUM', 'C', otherStart, otherEnd);
+      t.getCell(5).value = agg('SUM', 'E', otherStart, otherEnd);
+      t.getCell(7).value = agg('SUM', 'G', otherStart, otherEnd);
+      t.getCell(8).value = agg('SUM', 'H', otherStart, otherEnd);
+      [3, 5, 7, 8].forEach((c) => (t.getCell(c).numFmt = INT));
+    }
+  }
+
 
   const BILLABLE = `CreditModel!$H$${ct}`;
 

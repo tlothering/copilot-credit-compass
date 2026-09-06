@@ -1,5 +1,12 @@
 import rateCardJson from '@/data/rate-card.v1.json';
-import type { ConsumptionRate, ConsumptionRateId, P3Tier, RateCard } from './types';
+import type {
+  ConsumptionRate,
+  ConsumptionRateId,
+  CreditCurrency,
+  CreditCurrencyId,
+  P3Tier,
+  RateCard,
+} from './types';
 
 /**
  * Constraint C6 — the rate card is data, not code. This module is the ONLY place
@@ -19,6 +26,17 @@ export function consumptionRate(card: RateCard, id: ConsumptionRateId): Consumpt
 
 export function creditsPerUnit(card: RateCard, id: ConsumptionRateId): number {
   return consumptionRate(card, id).credits;
+}
+
+/**
+ * Metadata for a credit currency. Prices live here rather than in TypeScript, and the
+ * `fundableBy` list is what stops a Microsoft funding vehicle being offered against a
+ * pool that is billed on somebody else's meter.
+ */
+export function creditCurrency(card: RateCard, id: CreditCurrencyId): CreditCurrency {
+  const currency = card.creditCurrencies?.[id];
+  if (!currency) throw new Error(`Rate card ${card.version} has no credit currency "${id}"`);
+  return currency;
 }
 
 export function paygCreditUsd(card: RateCard): number {

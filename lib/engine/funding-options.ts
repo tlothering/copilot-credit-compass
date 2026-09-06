@@ -1,6 +1,8 @@
 import type {
   AuditValue,
   CostModel,
+  CreditCurrency,
+  CreditCurrencyId,
   CreditModel,
   FundingBreakdownRow,
   FundingOption,
@@ -97,6 +99,29 @@ export function buildFundingOptions(input: FundingInput, audit: AuditTrail): Fun
   ];
 
   for (const option of options) {
+    // Which currencies this vehicle can actually pay for is declared by the rate card,
+    // not by the engine. A pool no vehicle can fund is costed on its own meter in the
+    // cost model and shows up identically in every option, so the comparison between
+    // options stays a comparison of Microsoft funding choices.
+    option.fundsCurrencies = (
+      Object.entries(card.creditCurrencies) as [CreditCurrencyId, CreditCurrency][]
+    )
+      .filter(([, currency]) => currency.fundableBy.includes(option.id))
+      .map(([id]) => id);
+
+    const unfundable = input.credits.byCurrency.filter(
+      (c) => c.billableCredits > 0 && !option.fundsCurrencies.includes(c.currency),
+    );
+    if (unfundable.length > 0) {
+      option.breakdown.push({
+        label: `Billed on another meter (${unfundable.map((c) => c.meter).join(', ')})`,
+        annualUsd: unfundable.reduce((a, c) => a + c.billableCostUsd, 0) * 12,
+        note: `${unfundable
+          .map((c) => c.label)
+          .join(' and ')} cannot be funded by this option, or by any other Microsoft vehicle. Carried at full price in every option's platform cost.`,
+      });
+    }
+
     audit.record(
       `funding:${option.id}`,
       option.summary,
@@ -107,6 +132,8 @@ export function buildFundingOptions(input: FundingInput, audit: AuditTrail): Fun
         wasteCredits: option.wasteCredits,
         shortfallCredits: option.shortfallCredits,
         eligible: option.eligible,
+        fundsCurrencies: option.fundsCurrencies.join(', ') || 'none',
+        unfundableOnThisVehicle: unfundable.map((c) => c.label).join(', ') || 'none',
       },
       option.twelveMonthTotalUsd,
       'USD over 12 months',
@@ -166,6 +193,21 @@ function buildPayg(
 /* 2. Capacity packs only (hard stop)                                  */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Sizes prepaid capacity packs against a demand percentile.
+ *
+ * A customer with real demand should always be offered at least one pack — sizing to
+ * zero would make the option meaningless. But a customer with *no* Microsoft credit
+ * demand at all must be offered no packs: quoting a pack against zero consumption is
+ * quoting for capacity that cannot ever be used. This case is reachable now that
+ * GitHub AI credits bill on a separate meter, so a GitHub-only estate has zero
+ * Microsoft demand while still having a real bill.
+ */
+function sizePacks(target: number, packSize: number, annualDemand: number): number {
+  if (annualDemand <= 0) return 0;
+  return Math.max(1, Math.ceil(safeDiv(target, packSize)));
+}
+
 function buildPacksOnly(
   input: FundingInput,
   packSize: number,
@@ -176,7 +218,7 @@ function buildPacksOnly(
   sizingPercentile: number,
 ): FundingOption {
   const target = percentile(demand, sizingPercentile);
-  const packCount = Math.max(1, Math.ceil(safeDiv(target, packSize)));
+  const packCount = sizePacks(target, packSize, annualDemand);
   const capacity = packCount * packSize;
 
   let served = 0;
@@ -257,7 +299,7 @@ function buildPacksPlusPayg(
   volatile: boolean,
 ): FundingOption {
   const target = percentile(demand, sizingPercentile);
-  const packCount = Math.max(1, Math.ceil(safeDiv(target, packSize)));
+  const packCount = sizePacks(target, packSize, annualDemand);
   const capacity = packCount * packSize;
 
   let waste = 0;
@@ -457,7 +499,7 @@ function buildP3PacksPayg(
   sizingPercentile: number,
 ): FundingOption {
   const target = percentile(demand, sizingPercentile);
-  const packCount = Math.max(1, Math.ceil(safeDiv(target, packSize)));
+  const packCount = sizePacks(target, packSize, annualDemand);
   const capacity = packCount * packSize;
 
   const residualExpected = demand.map((d) => Math.max(0, d - capacity));
@@ -662,19 +704,28 @@ function buildByomFoundry(
 /* ------------------------------------------------------------------ */
 
 function buildDoNothing(input: FundingInput, annualDemand: number): FundingOption {
+  // Declining to fund is a real choice about Microsoft credits and Microsoft seats.
+  // It is not a choice about credits billed on another meter: GitHub AI credit overage
+  // is enabled by default and bills automatically against seats you already hold, so no
+  // decision made in this tool avoids it. Zeroing it here would make the GitHub bill look
+  // like a saving and hand "do nothing" an unearned win, which is the precise error the
+  // separate credit meters exist to prevent.
+  const unavoidableLines = input.cost.platformLines.filter((l) => l.id.startsWith('other-meter-'));
+  const unavoidableAnnualUsd = unavoidableLines.reduce((acc, l) => acc + l.annualUsd, 0);
+
   return finalise({
     id: 'do-nothing',
     label: 'Do nothing (deliberate baseline)',
     summary: 'No funding instrument is put in place; the modelled capability is simply not delivered.',
     creditFundingUsd: 0,
-    platformCostUsd: 0,
+    platformCostUsd: unavoidableAnnualUsd,
     monthlyCreditUsd: ZERO_MONTHS(),
-    platformMonthlyUsd: 0,
+    platformMonthlyUsd: unavoidableAnnualUsd / 12,
     creditsServed: 0,
     purchasedCredits: 0,
     wasteCredits: 0,
     shortfallCredits: annualDemand,
-    cashFlowShape: 'none',
+    cashFlowShape: unavoidableAnnualUsd > 0 ? 'monthly-variable' : 'none',
     commitmentLockInMonths: 0,
     maccEligibility: 'no',
     reversibility: 'n/a',
@@ -688,10 +739,19 @@ function buildDoNothing(input: FundingInput, annualDemand: number): FundingOptio
         annualUsd: 0,
         note: `${Math.round(annualDemand).toLocaleString('en-US')} credits of forecast demand goes unserved`,
       },
+      ...unavoidableLines.map((l) => ({
+        label: l.label,
+        annualUsd: l.annualUsd,
+        note: 'Bills automatically on its own meter — declining to fund Microsoft credits does not stop it.',
+      })),
     ],
     eligible: true,
     ineligibleReasons: [],
-    meta: { unservedCredits: annualDemand, sizedAgainstWorkloads: input.normalised.activeWorkloads.length },
+    meta: {
+      unservedCredits: annualDemand,
+      sizedAgainstWorkloads: input.normalised.activeWorkloads.length,
+      unavoidableAnnualUsd,
+    },
   });
 }
 
@@ -746,6 +806,7 @@ function finalise(draft: DraftOption): FundingOption {
     cashFlowShape: draft.cashFlowShape,
     commitmentLockInMonths: draft.commitmentLockInMonths,
     maccEligibility: draft.maccEligibility,
+    fundsCurrencies: [],
     reversibility: draft.reversibility,
     bestWhen: draft.bestWhen,
     avoidWhen: draft.avoidWhen,

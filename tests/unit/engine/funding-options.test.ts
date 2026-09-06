@@ -174,7 +174,17 @@ describe('2. capacity packs only', () => {
   });
 
   it('buys at least one pack even with negligible demand', () => {
-    expect(fund([]).byId('packs-only').meta?.packCount).toBe(1);
+    const tiny = fund(['retrieval-api'], { 'retrieval-api': { queriesPerMonth: 1 } });
+    expect(tiny.byId('packs-only').meta?.packCount).toBe(1);
+  });
+
+  it('buys no packs at all when there is no demand to serve', () => {
+    // Reachable for a GitHub-only estate: a real bill, but none of it on the
+    // Microsoft meter. Quoting a capacity pack there is quoting for dead capacity.
+    const o = fund([]).byId('packs-only');
+    expect(o.meta?.packCount).toBe(0);
+    expect(o.purchasedCredits).toBe(0);
+    expect(o.creditFundingUsd).toBe(0);
   });
 
   it('is a fixed monthly cost that never varies', () => {
@@ -204,7 +214,11 @@ describe('2. capacity packs only', () => {
   });
 
   it('reports waste as a percentage of purchased capacity', () => {
-    const o = fund([], {}, {}, true).byId('packs-only');
+    // Needs a flat estate that is small enough to leave a pack mostly idle.
+    const o = fund(['retrieval-api'], { 'retrieval-api': { queriesPerMonth: 100 } }, {}, true).byId(
+      'packs-only',
+    );
+    expect(o.purchasedCredits).toBeGreaterThan(0);
     expect(o.wastePctOfPurchased).toBeGreaterThan(0);
     expect(near(o.wastePctOfPurchased)).toBe(near((o.wasteCredits / o.purchasedCredits) * 100));
   });

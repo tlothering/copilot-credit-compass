@@ -124,7 +124,8 @@ describe('rule 2 — waste', () => {
       expect(r.effect).toContain('Disqualified');
       const blocked = rec.ranked.filter((o) => o.tradeOff.includes('go unused'));
       expect(blocked.length).toBeGreaterThan(0);
-      expect(blocked[0]?.score).toBe(Number.POSITIVE_INFINITY);
+      expect(blocked[0]?.blocked).toBe(true);
+      expect(Number.isFinite(blocked[0]!.score)).toBe(true);
     }
   });
 
@@ -147,7 +148,7 @@ describe('rule 3 — commit', () => {
     const { rec } = recommend(BASE, {}, { growth: { canCommitAnnually: false } });
     expect(rule(rec, 'commit').fired).toBe(true);
     for (const id of ['p3-plus-payg', 'p3-packs-payg'] as const) {
-      expect(rec.ranked.find((o) => o.optionId === id)?.score).toBe(Number.POSITIVE_INFINITY);
+      expect(rec.ranked.find((o) => o.optionId === id)?.blocked).toBe(true);
     }
   });
 
@@ -238,7 +239,7 @@ describe('rule 5 — licence', () => {
       { profile: { knowledgeWorkers: 400 } },
     );
     const entry = rec.ranked.find((o) => o.optionId === 'licence-shift');
-    if (entry && Number.isFinite(entry.score)) {
+    if (entry && !entry.blocked) {
       expect(near(entry.score)).toBe(near(entry.twelveMonthTotalUsd * 0.85));
     }
   });
@@ -259,7 +260,7 @@ describe('rule 6 — governance', () => {
 
   it('adds a consumption-alerts action when the leading candidate is prepaid', () => {
     const { rec } = recommend(BASE, {}, COMMITTABLE);
-    const leading = rec.ranked.find((o) => Number.isFinite(o.score));
+    const leading = rec.ranked.find((o) => !o.blocked);
     if (
       leading &&
       ['packs-only', 'packs-plus-payg', 'p3-plus-payg', 'p3-packs-payg'].includes(leading.optionId)
@@ -287,9 +288,7 @@ describe('rule 7 — safety net', () => {
     const r = rule(rec, 'safety-net');
     expect(r.fired).toBe(true);
     expect(rec.safetyNet).toContain('degrade gracefully');
-    expect(rec.ranked.find((o) => o.optionId === 'packs-only')?.score).toBe(
-      Number.POSITIVE_INFINITY,
-    );
+    expect(rec.ranked.find((o) => o.optionId === 'packs-only')?.blocked).toBe(true);
   });
 
   it('does not fire and leaves hard-stop options on the table when a stop is acceptable', () => {
@@ -308,10 +307,27 @@ describe('scoring and ranking', () => {
     expect(near(payg!.score)).toBe(near(payg!.twelveMonthTotalUsd));
   });
 
-  it('sorts ascending by score', () => {
-    const scores = recommend(BASE).rec.ranked.map((o) => o.score);
-    for (let i = 1; i < scores.length; i += 1) {
-      expect(scores[i]!).toBeGreaterThanOrEqual(scores[i - 1]!);
+  it('ranks every eligible option ahead of every blocked one, each group ascending by score', () => {
+    const ranked = recommend(BASE).rec.ranked;
+    const firstBlocked = ranked.findIndex((o) => o.blocked);
+    if (firstBlocked >= 0) {
+      expect(ranked.slice(firstBlocked).every((o) => o.blocked)).toBe(true);
+    }
+    for (const group of [ranked.filter((o) => !o.blocked), ranked.filter((o) => o.blocked)]) {
+      for (let i = 1; i < group.length; i += 1) {
+        expect(group[i]!.score).toBeGreaterThanOrEqual(group[i - 1]!.score);
+      }
+    }
+  });
+
+  it('keeps a real, finite score on a blocked option rather than a sentinel', () => {
+    const { rec } = recommend(BASE, {}, { growth: { canCommitAnnually: false } });
+    const blocked = rec.ranked.filter((o) => o.blocked);
+    expect(blocked.length).toBeGreaterThan(0);
+    for (const o of blocked) {
+      expect(Number.isFinite(o.score)).toBe(true);
+      // Infinity does not survive JSON.stringify — it becomes null.
+      expect(JSON.parse(JSON.stringify({ s: o.score })).s).toBe(o.score);
     }
   });
 
@@ -319,10 +335,12 @@ describe('scoring and ranking', () => {
     expect(recommend(BASE).rec.ranked).toHaveLength(8);
   });
 
-  it('picks the lowest-scoring option as primary', () => {
+  it('picks the lowest-scoring unblocked option as primary', () => {
     const { rec } = recommend(BASE);
     expect(rec.primary.optionId).toBe(rec.ranked[0]?.optionId);
-    expect(rec.primary.score).toBe(Math.min(...rec.ranked.map((o) => o.score)));
+    const unblocked = rec.ranked.filter((o) => !o.blocked);
+    expect(rec.primary.score).toBe(Math.min(...unblocked.map((o) => o.score)));
+    expect(rec.primary.blocked).toBe(false);
     expect(Number.isFinite(rec.primary.score)).toBe(true);
   });
 
@@ -349,14 +367,14 @@ describe('scoring and ranking', () => {
   it('gives a disqualified option the reason it was blocked as its trade-off', () => {
     const { rec } = recommend(BASE, {}, { growth: { canCommitAnnually: false } });
     const blocked = rec.ranked.find((o) => o.optionId === 'p3-plus-payg');
-    expect(blocked?.score).toBe(Number.POSITIVE_INFINITY);
+    expect(blocked?.blocked).toBe(true);
     expect(blocked?.tradeOff).toContain('annual commitment');
   });
 
   it('never recommends doing nothing while there is real demand', () => {
     const { rec } = recommend(BASE);
     const doNothing = rec.ranked.find((o) => o.optionId === 'do-nothing');
-    expect(doNothing?.score).toBe(Number.POSITIVE_INFINITY);
+    expect(doNothing?.blocked).toBe(true);
     expect(doNothing?.tradeOff).toContain('baseline for comparison');
     expect(rec.primary.optionId).not.toBe('do-nothing');
   });

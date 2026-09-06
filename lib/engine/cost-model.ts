@@ -28,7 +28,7 @@ export function buildCostModel(
 
   audit.record(
     'cost:metered-credits',
-    'meteredCreditCost = billableCredits × payAsYouGoCreditPrice',
+    'meteredCreditCost = billableMicrosoftCopilotCredits × payAsYouGoCreditPrice',
     { billableCredits: credits.billableCredits, payAsYouGoCreditPrice: payg },
     meteredCreditCostUsd,
     'USD/month',
@@ -36,6 +36,37 @@ export function buildCostModel(
   );
 
   const platformLines: PlatformCostLine[] = [];
+
+  /* ---------------- Credits billed on another meter ---------------- */
+  // GitHub AI credit overage is real money, but no Microsoft funding vehicle can pay
+  // for it. Treating it as a platform cost — common to every funding option, never
+  // absorbed into a capacity pack, pre-purchase tier, MACC or Azure prepayment — is
+  // what keeps the funding comparison honest.
+  for (const line of credits.byCurrency) {
+    if (line.currency === 'microsoft-copilot-credit' || line.billableCredits <= 0) continue;
+    platformLines.push({
+      id: `other-meter-${line.currency}`,
+      label: `${line.label} overage (${line.meter} meter)`,
+      monthlyUsd: line.billableCostUsd,
+      annualUsd: line.billableCostUsd * 12,
+      rateCardRef: `creditCurrencies.${line.currency}`,
+      note: `${Math.round(line.billableCredits).toLocaleString('en-GB')} credits a month at $${line.unitUsd} each, billed by ${line.meter}. No Microsoft capacity pack, pre-purchase tier, MACC burn-down or Azure prepayment can fund this.`,
+    });
+    audit.record(
+      `cost:other-meter:${line.currency}`,
+      'cost = billableCredits × currencyUnitPrice, on its own meter',
+      {
+        currency: line.currency,
+        meter: line.meter,
+        billableCredits: line.billableCredits,
+        unitUsd: line.unitUsd,
+        fundableByMicrosoftVehicles: line.fundableBy.length > 0,
+      },
+      line.billableCostUsd,
+      'USD/month',
+      `creditCurrencies.${line.currency}`,
+    );
+  }
 
   /* ---------------- Microsoft 365 Copilot seats ---------------- */
   const m365 = usage['m365-copilot'];

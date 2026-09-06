@@ -39,6 +39,7 @@ function makeOption(id: FundingOptionId, over: Partial<FundingOption> = {}): Fun
     cashFlowShape: 'monthly-variable',
     commitmentLockInMonths: 0,
     maccEligibility: 'yes',
+    fundsCurrencies: ['microsoft-copilot-credit'],
     reversibility: 'immediate',
     bestWhen: 'best when',
     avoidWhen: 'avoid when',
