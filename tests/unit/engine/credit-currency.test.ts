@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { runEngine } from '@/lib/engine';
+import { WORKLOADS } from '@/lib/schemas/taxonomy';
 import { card, flatAnswers, near } from './fixtures';
 
 /**
@@ -154,5 +155,43 @@ describe('funding options cannot fund the wrong meter', () => {
     expect(doNothing.twelveMonthTotalUsd).toBeGreaterThanOrEqual(ghAnnual);
     expect(recommendation.ranked.find((o) => o.optionId === 'do-nothing')!.blocked).toBe(true);
     expect(recommendation.primary.optionId).not.toBe('do-nothing');
+  });
+});
+
+describe('workload picker meter chips match what the engine bills', () => {
+  // The chip on each workload card in step 2 is derived from WorkloadMeta.creditMeter.
+  // If a workload's engine output ever moves to a different meter, the card would keep
+  // showing the old meter name to the user. This pins the two together.
+  const metered = WORKLOADS.filter((w) => w.meteredInCredits);
+
+  it('covers every credit-metered workload', () => {
+    expect(metered.length).toBeGreaterThan(5);
+  });
+
+  it.each(metered.map((w) => [w.id, w.creditMeter ?? 'microsoft-copilot-credit'] as const))(
+    '%s bills on the %s meter',
+    (id, declared) => {
+      const answers = flatAnswers([id], {
+        'github-copilot': {
+          seats: 400,
+          plan: 'business',
+          heavyUserPct: 100,
+          modelTier: 'premium',
+        },
+      });
+      const { credits } = runEngine(answers);
+      const own = credits.lines.filter((l) => l.workloadId === id);
+      expect(own.length, `${id} produced no credit lines`).toBeGreaterThan(0);
+      for (const line of own) {
+        expect(line.currency, `${id} line "${line.label}"`).toBe(declared);
+      }
+    },
+  );
+
+  it('names the GitHub meter distinctly from the Microsoft one', () => {
+    const gh = card.creditCurrencies['github-ai-credit'].label;
+    const ms = card.creditCurrencies['microsoft-copilot-credit'].label;
+    expect(gh).not.toBe(ms);
+    expect(gh).toMatch(/GitHub/i);
   });
 });

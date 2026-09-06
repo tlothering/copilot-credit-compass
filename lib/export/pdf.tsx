@@ -361,7 +361,7 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
 
         <Text style={s.h3}>Effective cost per credit by option</Text>
         <Table
-          cols={['Option', '12-month', '$/credit', 'Waste', 'Shortfall', 'Eligible']}
+          cols={['Option', '12-month', '$/credit', 'Waste', 'Shortfall', 'Candidate']}
           widths={[30, 16, 14, 13, 13, 14]}
           aligns={['left', 'right', 'right', 'right', 'right', 'left']}
           rows={fundingOptions.map((o) => [
@@ -370,7 +370,10 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
             money2(o.effectiveUsdPerCredit),
             pc(o.wastePctOfPurchased),
             pc(o.shortfallRiskPct),
-            o.eligible ? 'yes' : 'no',
+            // The recommendation's verdict, not just structural eligibility — a buyable
+            // option can still be disqualified by a rule, and "do nothing" often shows
+            // the lowest 12-month figure in this table.
+            result.recommendation.ranked.find((r) => r.optionId === o.id)?.blocked ? 'no' : 'yes',
           ])}
         />
 

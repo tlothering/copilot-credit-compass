@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useHydratedSession } from '@/lib/store/guards';
 import { useSession, skippedCount } from '@/lib/store/session';
 import { runEngine } from '@/lib/engine';
-import type { AuditEntry, EngineResult, FundingOption, RiskSeverity } from '@/lib/engine/types';
+import type { AuditEntry, EngineResult, FundingOption, RankedOption, RiskSeverity } from '@/lib/engine/types';
 import { workloadMeta } from '@/lib/schemas/taxonomy';
 import { Badge, Button, Card, CardTitle } from '@/components/ui/primitives';
 import { ChartFrame, DataTable } from './chart-frame';
@@ -350,7 +350,7 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
       {/* ------------------------------------------------- Options */}
       <ChartFrame
         title="All eight funding options, costed the same way"
-        hint="Ranked by 12-month total across eligible options. Ineligible options are still shown with the reason, because 'why not' is usually the question that gets asked."
+        hint="Ranked by 12-month total across options still in contention. Options that are ruled out are still shown with the reason, because 'why not' is usually the question that gets asked."
         table={{
           caption: 'Funding option comparison over twelve months',
           columns: [
@@ -364,7 +364,7 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
             'Lock-in (months)',
           ],
           rows: fundingOptions.map((o) => [
-            `${o.label}${o.eligible ? '' : ' (ineligible)'}`,
+            `${o.label}${recommendation.ranked.find((r) => r.optionId === o.id)?.blocked ? ' (ruled out)' : ''}`,
             usd(o.twelveMonthTotalUsd),
             usd(o.twelveMonthTotalUsd - recommendation.primary.twelveMonthTotalUsd),
             usd(o.effectiveUsdPerCredit, true),
@@ -390,7 +390,11 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
             ))}
         </div>
         <div className="mt-4 overflow-x-auto">
-          <OptionDetail options={fundingOptions} primaryId={recommendation.primary.optionId} />
+          <OptionDetail
+            options={fundingOptions}
+            primaryId={recommendation.primary.optionId}
+            ranked={recommendation.ranked}
+          />
         </div>
       </ChartFrame>
 
@@ -499,10 +503,20 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
 function OptionDetail({
   options,
   primaryId,
+  ranked,
 }: {
   options: FundingOption[];
   primaryId: string;
+  /**
+   * The recommendation's verdict per option. Structural eligibility is not the whole
+   * story: an option can be perfectly buyable and still be ruled out by a rule. "Do
+   * nothing" is the dangerous case — it is always buyable and frequently carries the
+   * lowest 12-month figure in this table, so presenting it as a live candidate invites
+   * a reader to pick the cheapest row and be badly wrong.
+   */
+  ranked: RankedOption[];
 }) {
+  const verdictById = new Map(ranked.map((r) => [r.optionId, r]));
   return (
     <table className="w-full min-w-[52rem] border-collapse text-left text-xs">
       <caption className="sr-only">Funding option characteristics</caption>
@@ -535,15 +549,18 @@ function OptionDetail({
         </tr>
       </thead>
       <tbody>
-        {options.map((o) => (
+        {options.map((o) => {
+          const verdict = verdictById.get(o.id);
+          const ruledOut = verdict?.blocked ?? !o.eligible;
+          return (
           <tr
             key={o.id}
             className={
               o.id === primaryId
                 ? 'border-b border-line/50 bg-accent-quiet'
-                : o.eligible
+                : !ruledOut
                   ? 'border-b border-line/50'
-                  : // Ineligible rows used to be dimmed with opacity, which
+                  : // Ruled-out rows used to be dimmed with opacity, which
                     // pushed their text below AA. They are de-emphasised with a
                     // recessed surface and an explicit label instead — the
                     // reason a row is ruled out is exactly the sort of thing a
@@ -553,13 +570,17 @@ function OptionDetail({
           >
             <th scope="row" className="py-2 pr-3 font-normal">
               <span className="font-medium">{o.label}</span>
-              {!o.eligible ? (
+              {ruledOut ? (
                 <span className="ml-2 rounded-full border border-line px-1.5 py-0.5 text-2xs text-fg-muted">
-                  Not eligible
+                  {o.eligible ? 'Ruled out' : 'Not eligible'}
                 </span>
               ) : null}
               <span className="block text-2xs text-fg-muted">
-                {o.eligible ? o.bestWhen : o.ineligibleReasons.join('; ')}
+                {!ruledOut
+                  ? o.bestWhen
+                  : o.eligible
+                    ? (verdict?.tradeOff ?? '')
+                    : o.ineligibleReasons.join('; ')}
               </span>
             </th>
             <td className="py-2 pr-3 text-right mono-num">{usd(o.twelveMonthTotalUsd)}</td>
@@ -570,7 +591,8 @@ function OptionDetail({
             <td className="py-2 pr-3">{o.maccEligibility}</td>
             <td className="py-2 pr-3">{o.reversibility}</td>
           </tr>
-        ))}
+          );
+        })}
       </tbody>
     </table>
   );

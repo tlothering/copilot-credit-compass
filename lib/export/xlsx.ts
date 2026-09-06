@@ -465,12 +465,18 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
     'Waste %',
     'Shortfall %',
     'Lock-in',
-    'Eligible / reason',
+    'Candidate / reason ruled out',
   ]);
 
   const fundStart = funding.rowCount + 1;
   const primaryTotal = result.recommendation.primary.twelveMonthTotalUsd;
+  // The recommendation's verdict, not just structural eligibility. A buyable option can
+  // still be disqualified by a rule, and "do nothing" often shows the lowest 12-month
+  // figure here — labelling it a candidate invites the reader to pick the cheapest row.
+  const rankedById = new Map(result.recommendation.ranked.map((x) => [x.optionId, x]));
   for (const o of result.fundingOptions) {
+    const verdict = rankedById.get(o.id);
+    const blocked = verdict?.blocked ?? !o.eligible;
     const r = funding.addRow([
       o.label,
       o.creditFundingUsd,
@@ -481,7 +487,9 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
       o.wastePctOfPurchased / 100,
       o.shortfallRiskPct / 100,
       o.commitmentLockInMonths,
-      o.eligible ? o.bestWhen : `INELIGIBLE — ${o.ineligibleReasons.join('; ')}`,
+      blocked
+        ? `RULED OUT — ${o.eligible ? (verdict?.tradeOff ?? '') : o.ineligibleReasons.join('; ')}`
+        : o.bestWhen,
     ]);
     const n = r.number;
     r.getCell(4).value = { formula: `B${n}+C${n}`, date1904: false };
@@ -491,7 +499,7 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
     r.getCell(6).numFmt = MONEY;
     r.getCell(7).numFmt = PCT;
     r.getCell(8).numFmt = PCT;
-    r.getCell(10).font = { size: 9, color: { argb: o.eligible ? MUTED : 'FFB4530A' } };
+    r.getCell(10).font = { size: 9, color: { argb: blocked ? 'FFB4530A' : MUTED } };
     if (o.id === result.recommendation.primary.optionId) {
       r.font = { bold: true };
       r.eachCell((c) => {

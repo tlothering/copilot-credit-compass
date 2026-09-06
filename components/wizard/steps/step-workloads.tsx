@@ -2,8 +2,11 @@
 
 import { useSession } from '@/lib/store/session';
 import { WORKLOADS } from '@/lib/schemas/taxonomy';
+import { creditCurrency, getRateCard } from '@/lib/engine/rate-card';
 import { Badge } from '@/components/ui/primitives';
 import { cn } from '@/lib/ui';
+
+const CARD = getRateCard();
 
 export function StepWorkloads() {
   const selected = useSession((s) => s.answers.workloads);
@@ -63,7 +66,9 @@ export function StepWorkloads() {
                   <span className="text-xs text-fg-muted">{w.blurb}</span>
                   <span className="mt-auto flex flex-wrap gap-1.5 pt-1">
                     {w.meteredInCredits ? (
-                      <Badge tone="accent">Copilot Credits</Badge>
+                      <Badge tone="accent">
+                        {creditCurrency(CARD, w.creditMeter ?? 'microsoft-copilot-credit').label}s
+                      </Badge>
                     ) : (
                       <Badge tone="neutral">Not credit-metered</Badge>
                     )}

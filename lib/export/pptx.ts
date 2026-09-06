@@ -1,4 +1,5 @@
 import type { ExportInput } from './index';
+import type { FundingOptionId } from '../engine/types';
 import { workloadMeta } from '@/lib/schemas/taxonomy';
 import { DISCLAIMER } from './copy';
 
@@ -253,9 +254,16 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
   /* -------------------------------------------------- 4 — The options */
   const s4 = p.addSlide({ masterName: 'CCC' });
   title(s4, 'The options', 'Eight routes, costed on identical volume');
+  // Structural eligibility is not the whole verdict: an option can be perfectly buyable
+  // and still be disqualified by a recommendation rule. "Do nothing" is the dangerous
+  // case — it is always buyable and often carries the lowest figure in the table, so
+  // labelling it eligible invites a reader to pick the cheapest row and be badly wrong.
+  const rankedById = new Map(recommendation.ranked.map((r) => [r.optionId, r]));
+  const isBlocked = (id: FundingOptionId) =>
+    rankedById.get(id)?.blocked ?? false;
   s4.addTable(
     [
-      head(['Option', '12-month', '$/credit', 'Waste', 'Shortfall', 'Lock-in', 'Eligible']),
+      head(['Option', '12-month', '$/credit', 'Waste', 'Shortfall', 'Lock-in', 'Candidate']),
       ...fundingOptions.map((o) =>
         [
           o.label,
@@ -264,13 +272,17 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
           pc(o.wastePctOfPurchased),
           pc(o.shortfallRiskPct),
           o.commitmentLockInMonths ? `${o.commitmentLockInMonths} mo` : '—',
-          o.eligible ? 'yes' : 'no',
+          isBlocked(o.id) ? 'no' : 'yes',
         ].map((t, ci) => ({
           text: t,
           options: {
             fontSize: 9,
             bold: o.id === recommendation.primary.optionId,
-            color: o.eligible ? (o.id === recommendation.primary.optionId ? ACCENT : INK) : MUTED,
+            color: isBlocked(o.id)
+              ? MUTED
+              : o.id === recommendation.primary.optionId
+                ? ACCENT
+                : INK,
             align: ci === 0 || ci === 6 ? ('left' as const) : ('right' as const),
           },
         })),

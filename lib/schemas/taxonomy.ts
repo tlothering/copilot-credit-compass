@@ -245,6 +245,14 @@ export interface WorkloadMeta {
   blurb: string;
   /** Does this workload consume Copilot Credits? */
   meteredInCredits: boolean;
+  /**
+   * Which meter raises the bill. GitHub Copilot consumes GitHub AI credits on
+   * GitHub's own meter, not Microsoft Copilot Credits — they cost the same but no
+   * Microsoft purchasing vehicle can fund them, so the UI must not call them the
+   * same thing. Pinned against what the engine actually emits by
+   * tests/unit/engine/credit-currency.test.ts.
+   */
+  creditMeter?: 'microsoft-copilot-credit' | 'github-ai-credit';
   /** Does it also carry a per-seat or provisioned licence cost? */
   hasSeatCost: boolean;
 }
@@ -326,6 +334,7 @@ export const WORKLOADS: readonly WorkloadMeta[] = [
     blurb:
       'Developer seats with a pooled AI credit allowance and metered overage. Code completions are unlimited and never billed.',
     meteredInCredits: true,
+    creditMeter: 'github-ai-credit',
     hasSeatCost: true,
   },
   {

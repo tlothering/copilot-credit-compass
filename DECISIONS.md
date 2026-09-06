@@ -654,3 +654,66 @@ licence shift never removes more credits than are offsettable fired on about 30
 of 2,000 seeds. Instrumenting it to print magnitudes showed a relative
 difference of 1.2e-16 — one double ULP. The tolerance was wrong, not the engine.
 The lesson is to measure the size of a discrepancy before calling it a defect.
+
+## 11. Pressure test: usability, errors and accuracy
+
+The brief was to pressure test the built app with the bar set at "the output MUST
+be accurate". Three defects were found and fixed; several suspected defects were
+investigated and proved to be correct behaviour, which is recorded here so the
+same ground is not re-covered.
+
+69. **The workload picker told the user GitHub Copilot bills Copilot Credits.**
+    The chip on every credit-metered card in step 2 was the hard-coded string
+    "Copilot Credits". After the currency split that was simply untrue for
+    GitHub Copilot, which bills AI credits on GitHub's own meter — the exact
+    conflation the split exists to prevent, still being asserted on the page
+    where the user chooses what to model. The card's own blurb contradicted its
+    chip. Fixed by adding `WorkloadMeta.creditMeter` and deriving the chip label
+    from the rate card, so it reads "GitHub AI credits" or "Microsoft Copilot
+    Credits". The declaration is pinned to what the engine actually emits by a
+    table-driven test over every metered workload, so a workload that changes
+    meter cannot leave a stale label behind.
+
+70. **Every export and the results table presented ruled-out options as
+    candidates.** All four renderers showed `FundingOption.eligible`, which is
+    structural buyability, rather than `RankedOption.blocked`, which is the
+    recommendation's actual verdict. "Do nothing" is the dangerous case: it is
+    always structurally eligible, and because it declines to fund the demand
+    rather than costing it, it frequently carries the *lowest* twelve-month
+    figure in the table. On the mixed-estate fixture the board slide read "Do
+    nothing — $748,800 — eligible: yes" in full ink, directly beneath a
+    recommendation of $1,072,794. A reader scanning that table for the cheapest
+    eligible row would reach the opposite of the engine's conclusion, wrong by
+    $324,000. All four renderers now key off `blocked`, the column is headed
+    "Candidate" rather than "Eligible", and a blocked row shows the rule's own
+    explanation instead of an eligibility message.
+
+71. **Exports were never checked for numeric agreement with the engine.** The
+    existing export tests asserted that a PDF starts with `%PDF-` and that XLSX
+    and PPTX are valid ZIP containers — structural validity only. Nothing
+    asserted that the numbers inside matched the engine, which is the only
+    property a customer's finance team cares about, and which is exactly where a
+    real bug had already shipped. Added agreement tests that read all three
+    formats back — ExcelJS for the workbook, slide XML for PPTX, and inflated
+    content streams with hex-decoded text for the PDF — and pin the headline
+    figures and rate card version to the engine result. Both new suites were
+    proved non-vacuous by perturbing the expected values by 1% and confirming
+    they fail.
+
+Investigated and found correct, recorded so it is not re-litigated:
+
+- **A disabled Continue button on the workloads step.** Suspected a silent dead
+  end. It is not: the step shows "Nothing selected yet.", an inline "Select at
+  least one workload to continue." beside the button, and a running-estimate
+  hint. Correct behaviour, well explained.
+- **GitHub AI credits showing as zero on the default estate.** Hand-calculated
+  from the card: 200 seats, 30% heavy, standard tier gives 308,000 credits
+  against a pooled allowance of 380,000. Genuinely zero overage, not a zeroing
+  bug. The same hand calculation confirmed the 400-seat premium-tier case at
+  6,240,000 credits and $62,400 a month, matching the engine exactly.
+- **A 429 in the browser console.** Left over from deliberate rate-limit
+  probing. The submitter already handles a rejected contribution with a polite
+  `aria-live` message and affects nothing else on the page.
+- **Layout overlap in a full-page screenshot.** An artefact of capturing sticky
+  elements during a full-page scroll, not a rendering defect. Confirmed clean in
+  a viewport-sized capture and by a zero horizontal overflow check at 380px.
