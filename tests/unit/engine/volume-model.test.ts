@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildVolumeModel } from '@/lib/engine/volume-model';
 import { normalise } from '@/lib/engine/normalise';
+import { consumptionRate } from '@/lib/engine/rate-card';
 import type { WorkloadId } from '@/lib/schemas/taxonomy';
 import { answersWith, audit, card, near } from './fixtures';
 
@@ -275,6 +276,23 @@ describe('Copilot Cowork', () => {
     expect(l.quantity).toBe(1_800);
     expect(l.rateId).toBe('cowork-task');
   });
+
+  it('is not zero-rated by a Microsoft 365 Copilot licence', () => {
+    // Cowork draws Copilot Credits against the Microsoft 365 usage-based
+    // billing limit, unlike core Copilot Studio agent activity.
+    expect(consumptionRate(card, 'cowork-task').offsetByM365CopilotLicence).toBe(false);
+    expect(consumptionRate(card, 'cowork-task').offsetNote).toBeTruthy();
+
+    const withLicences = volumeFor(['copilot-cowork'], {
+      'copilot-cowork': { users: 150, tasksPerUserPerMonth: 12, m365CopilotLicensedPct: 100 },
+    });
+    const without = volumeFor(['copilot-cowork'], {
+      'copilot-cowork': { users: 150, tasksPerUserPerMonth: 12, m365CopilotLicensedPct: 0 },
+    });
+    expect(line(withLicences.model, 'copilot-cowork:tasks').quantity).toBe(
+      line(without.model, 'copilot-cowork:tasks').quantity,
+    );
+  });
 });
 
 describe('Foundry BYOM', () => {
@@ -300,19 +318,33 @@ describe('Retrieval API', () => {
 });
 
 describe('GitHub Copilot', () => {
-  const heavy = card.modelAssumptions.githubPremiumRequestsPerHeavyUserPerMonth;
-  const standard = card.modelAssumptions.githubPremiumRequestsPerStandardUserPerMonth;
+  const heavy = card.modelAssumptions.githubAiCreditsPerHeavyUserPerMonth;
+  const standard = card.modelAssumptions.githubAiCreditsPerStandardUserPerMonth;
+  const plans = card.commercial.githubCopilot.plans;
 
-  it('bills only the premium requests beyond the included allowance', () => {
+  it('bills only the AI credits beyond the pooled included allowance', () => {
     const seats = 100;
     const { model } = volumeFor(['github-copilot'], {
       'github-copilot': { seats, plan: 'business', heavyUserPct: 50, modelTier: 'standard' },
     });
     const perUser = 0.5 * heavy + 0.5 * standard;
     const multiplier = card.modelAssumptions.githubModelTierMultiplier.standard;
-    const included = seats * card.commercial.githubCopilot.business.includedPremiumRequestsPerUser;
+    const included = seats * plans.business.includedAiCreditsPerUserPerMonth;
     const expected = Math.max(0, seats * perUser * multiplier - included);
     expect(near(line(model, 'github-copilot:overage').quantity)).toBe(near(expected));
+  });
+
+  it('pools the allowance across the billing entity rather than per user', () => {
+    // 10 seats: one heavy user at 3,500 plus nine standard at 700 is 9,800
+    // against a 19,000 pool, so nothing is billed even though the heavy user
+    // individually exceeds 1,900. Ring-fencing would have billed 1,600.
+    const { model } = volumeFor(['github-copilot'], {
+      'github-copilot': { seats: 10, plan: 'business', heavyUserPct: 10, modelTier: 'standard' },
+    });
+    const perUser = 0.1 * heavy + 0.9 * standard;
+    expect(perUser * 10).toBeLessThan(10 * plans.business.includedAiCreditsPerUserPerMonth);
+    expect(heavy).toBeGreaterThan(plans.business.includedAiCreditsPerUserPerMonth);
+    expect(line(model, 'github-copilot:overage').quantity).toBe(0);
   });
 
   it('produces zero overage when the allowance covers demand', () => {
@@ -335,8 +367,8 @@ describe('GitHub Copilot', () => {
   });
 
   it('gives the enterprise plan a larger included allowance than business', () => {
-    expect(card.commercial.githubCopilot.enterprise.includedPremiumRequestsPerUser).toBeGreaterThan(
-      card.commercial.githubCopilot.business.includedPremiumRequestsPerUser,
+    expect(plans.enterprise.includedAiCreditsPerUserPerMonth).toBeGreaterThan(
+      plans.business.includedAiCreditsPerUserPerMonth,
     );
     const overageFor = (plan: 'business' | 'enterprise') =>
       line(
@@ -355,12 +387,15 @@ describe('GitHub Copilot', () => {
     expect(line(model, 'github-copilot:overage').licensedShareOfInternal).toBe(0);
   });
 
-  it('records the pre-allowance premium request total for transparency', () => {
+  it('records the pre-allowance AI credit total for transparency', () => {
     const { trail } = volumeFor(['github-copilot'], {
       'github-copilot': { seats: 100, plan: 'business', heavyUserPct: 0, modelTier: 'standard' },
     });
-    const entry = trail.entries.find((e) => e.step === 'volume:github-copilot:premium-requests');
+    const entry = trail.entries.find((e) => e.step === 'volume:github-copilot:ai-credits');
     expect(entry?.output).toBeGreaterThan(0);
+    expect(entry?.outputUnit).toBe('AI credits/month');
+    // The most common misunderstanding: completions never draw credits.
+    expect(entry?.inputs.codeCompletionsBilled).toBe(false);
   });
 });
 

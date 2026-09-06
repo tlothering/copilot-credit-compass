@@ -472,3 +472,84 @@ currency is stated on the card and on every artifact.
 **60. No attempt to predict Microsoft's future pricing.**
 The tool models what is published today and stamps the date. Extrapolation would
 look authoritative and be guesswork.
+
+---
+
+## 9. Post-verification corrections
+
+These four entries record changes made after the initial build, in response to
+independent verification of the rate card and the export writer.
+
+**61. GitHub Copilot migrated from premium requests to AI credits.**
+GitHub moved off premium requests to AI credits on 1 June 2026. The card now
+carries `consumption["github-ai-credit"]` and a rebuilt
+`commercial.githubCopilot`. Five judgement calls sit inside that change:
+
+- *The card version moved from `v1` to `v1.1`.* Not asked for, but benchmark
+  records stamp `rateCardVersion`, and leaving it at `v1` would let submissions
+  priced under the old GitHub numbers mix indistinguishably with corrected ones
+  in the public aggregate. The filename stays `rate-card.v1.json`; the version
+  string is what the app and the exports read.
+- *The nested `plans` shape was adopted* from the corrected sibling card rather
+  than invented, so `githubCopilot[plan]` became `githubCopilot.plans[plan]`.
+  That changes the `rateCardRef` strings in the audit trail, which is a visible
+  break, but a shared shape across the two tools is worth more than stable refs.
+- *`github-ai-credit` is carried at 1 credit.* A GitHub AI credit is $0.01 and
+  so is `paygCreditUsd`, so a 1:1 rate keeps a single credit column through the
+  engine. The JSON note states plainly that they are different currencies and
+  that GitHub overage cannot draw on a Microsoft capacity pack, MACC or Azure
+  prepayment. See decision 64 for what this still leaves unmodelled.
+- *The per-user assumptions were re-derived, not converted.* 3,500 credits for a
+  heavy user and 700 for a standard one, built up from the archetypes at their
+  typical values. Chosen deliberately so a standard user sits inside the 1,900
+  Business allowance and a heavy user outside it but inside Enterprise's 3,900 —
+  that boundary is the planning signal a buyer actually needs. They are
+  placeholders, flagged `verified: false`, and a test pins the relationship.
+- *`modelTierMultiplier` was left unchanged*, because GitHub still bills by
+  model and token volume, so the tier spread survives the units change.
+
+Code completions and next edit suggestions are unlimited and never billed. That
+is the single most common misunderstanding about this SKU and it decides whether
+a customer needs overage at all, so it is stated on the methodology page as a
+highlighted callout rather than a bullet.
+
+**62. Copilot Cowork is not zero-rated by a Microsoft 365 Copilot licence.**
+`cowork-task.offsetByM365CopilotLicence` was `true`; it is now `false` with an
+`offsetNote` explaining the distinction. Cowork task execution consumes Copilot
+Credits against the organisation's Microsoft 365 usage-based billing limit; it
+is not offset by holding a seat, unlike core Copilot Studio agent activity. The
+wizard copy already said "with no seat licence to offset it", which confirmed
+the JSON flag was the defect rather than the concept.
+
+Cowork keeps a licensed-share field, but a bespoke one — `LICENSED_PCT_NO_OFFSET`
+— because the shared `LICENSED_PCT` copy promises an offset that no longer
+applies here. The field is still collected because it genuinely feeds the
+estate-wide licence break-even through `normalise.ts`.
+
+**63. The XLSX writer guards aggregate ranges over empty row sets.**
+`SUM(C{start}:C{end})` was emitted with `end = worksheet.rowCount`, so a section
+with zero rows produced an inverted range like `SUM(C5:C4)`. All aggregate sites
+now route through an `agg()` helper that writes a literal `0` when `end < start`.
+
+Two things about this were worse than reported. The defect was reachable from
+`defaultAnswers()`, which ships `workloads: []` — so the malformed range was on
+the ordinary export path, not only behind an empty-selection API call. And
+`zebra()`, suspected of the same fault, is in fact already safe: its
+`for (i = from; i <= to)` simply no-ops on an inverted range. It was left alone
+rather than "fixed", because changing correct code to look defensive hides which
+line was actually wrong.
+
+The regression test unzips the real `.xlsx` bytes — central-directory walk plus
+`inflateRawSync`, no new dependency — and scans the sheet XML for inverted
+ranges. Asserting against the writer's own view of the workbook would have
+passed against the bug, since the bug is in what gets serialised. The test was
+verified non-vacuous by removing the guard and watching it fail.
+
+**64. The e2e suite is pinned to an isolated port.**
+`playwright.config.ts` had `reuseExistingServer: !CI` against a hard-coded port
+3000. `reuseExistingServer` adopts *any* listener on that port, so a dev server
+belonging to an unrelated repository was silently accepted and 18 of 28 specs
+asserted against the wrong application. The port is now `E2E_PORT`, and a
+running server is only adopted when `E2E_REUSE_SERVER=1` says so explicitly. A
+suite that quietly tests someone else's app is worse than no suite, because it
+reports failures that are real and unrelated.

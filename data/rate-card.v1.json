@@ -1,5 +1,5 @@
 {
-  "version": "v1",
+  "version": "v1.1",
   "effectiveDate": "2026-01-01",
   "currency": "USD",
   "title": "Copilot Credit Compass rate card",
@@ -9,6 +9,11 @@
       "version": "v1",
       "date": "2026-01-01",
       "summary": "Initial seed rate card. Copilot Studio consumption rates from Microsoft Learn 'Billing rates and management'. Commercial rates from public Microsoft pricing pages. P3 pre-purchase tier ladder interpolated from the two published anchor points (15,000 CU tier approx. 6 percent, upper tiers trending to approx. 20 percent)."
+    },
+    {
+      "version": "v1.1",
+      "date": "2026-09-06",
+      "summary": "Two corrections. GitHub Copilot migrated from premium requests to AI credits, the billing model GitHub adopted on 2026-06-01: 1 AI credit = $0.01, included allowances 1,900 (Business) and 3,900 (Enterprise) per user per month pooled at the billing entity, no rollover, overage on by default, and code completions and next edit suggestions unlimited and never billed. The expired launch promotional allowance is retained flagged expired so the app can explain a dropped allowance. Separately, cowork-task was wrongly marked as zero-rated by a Microsoft 365 Copilot licence; Cowork consumes Copilot Credits against the Microsoft 365 usage-based billing limit and is not offset by holding a seat. Version bumped so benchmark submissions made before and after the correction are distinguishable."
     }
   ],
   "consumption": {
@@ -163,20 +168,22 @@
       "credits": 30,
       "unit": "task",
       "displayRate": "30 credits per completed task",
-      "offsetByM365CopilotLicence": true,
+      "offsetByM365CopilotLicence": false,
+      "offsetNote": "Not zero-rated by a Microsoft 365 Copilot seat. Cowork task execution consumes Copilot Credits against the organisation's Microsoft 365 usage-based billing limit, unlike core Copilot Studio agent activity where a Microsoft 365 Copilot licence offsets the traffic. Holding a seat does not make a Cowork task free.",
       "note": "Market-observed planning placeholder for usage-based Copilot Credit consumption.",
       "verified": false,
       "sourceUrl": "https://learn.microsoft.com/en-us/microsoft-365-copilot/"
     },
-    "github-premium-request": {
-      "label": "GitHub Copilot premium request",
-      "credits": 4,
-      "unit": "premium request",
-      "displayRate": "4 credits per premium request (approx. $0.04 at the pay-as-you-go credit rate)",
+    "github-ai-credit": {
+      "label": "GitHub Copilot AI credit",
+      "credits": 1,
+      "unit": "AI credit",
+      "displayRate": "1 AI credit = $0.01, the same unit price as a pay-as-you-go Copilot Credit",
       "offsetByM365CopilotLicence": false,
-      "note": "Expressed in credits so GitHub overage prices at the $0.01 per credit meter while reconciling to the published $0.04 per premium request.",
-      "verified": false,
-      "sourceUrl": "https://docs.github.com/en/copilot/managing-copilot/monitoring-usage-and-entitlements/about-premium-requests"
+      "offsetNote": "A Microsoft 365 Copilot seat has no bearing on GitHub Copilot billing. These are separate products with separate meters.",
+      "note": "GitHub AI credits and Microsoft Copilot Credits are different currencies that happen to share a $0.01 unit price, so they are carried at 1:1 to keep one credit column in the model. They are not interchangeable in reality: GitHub overage is billed by GitHub and cannot be drawn from a Microsoft capacity pack, a MACC or an Azure prepayment.",
+      "verified": true,
+      "sourceUrl": "https://docs.github.com/en/copilot/concepts/billing/organizations-and-enterprises/usage-based-billing"
     }
   },
   "commercial": {
@@ -217,11 +224,94 @@
     },
     "githubCopilot": {
       "label": "GitHub Copilot",
-      "business": { "seatMonthlyUsd": 19, "includedPremiumRequestsPerUser": 300 },
-      "enterprise": { "seatMonthlyUsd": 39, "includedPremiumRequestsPerUser": 1000 },
+      "billingModel": "ai-credits",
+      "billingModelEffectiveDate": "2026-06-01",
+      "aiCreditUsd": 0.01,
+      "poolScope": "billing-entity",
+      "poolNote": "Included AI credits are pooled across the billing entity rather than ring-fenced per user. Adding licences mid-cycle grows the pool immediately; removing them only shrinks it from the next cycle.",
+      "creditsRollOver": false,
+      "poolResetDayOfMonth": 1,
+      "poolResetTimeUtc": "00:00",
+      "overageEnabledByDefault": true,
       "overageCreditUsd": 0.01,
+      "overagePolicyName": "AI credits paid usage",
+      "automaticFallbackToCheaperModel": false,
+      "userLevelBudgetsCanHaltIndividual": true,
+      "codeCompletionsBilled": false,
+      "nextEditSuggestionsBilled": false,
+      "unlimitedOnPaidPlans": ["code completions", "next edit suggestions"],
+      "billedFeatures": [
+        "Copilot Chat",
+        "Copilot CLI",
+        "Copilot cloud agent",
+        "Copilot Spaces",
+        "Spark",
+        "Third-party coding agents"
+      ],
+      "plans": {
+        "business": {
+          "label": "GitHub Copilot Business",
+          "seatMonthlyUsd": 19,
+          "includedAiCreditsPerUserPerMonth": 1900
+        },
+        "enterprise": {
+          "label": "GitHub Copilot Enterprise",
+          "seatMonthlyUsd": 39,
+          "includedAiCreditsPerUserPerMonth": 3900
+        }
+      },
+      "promotionalAllowance": {
+        "label": "Launch promotional AI credit allowance",
+        "expired": true,
+        "startDate": "2026-06-01",
+        "endDate": "2026-09-01",
+        "business": 3000,
+        "enterprise": 7000,
+        "note": "Ran from 1 June to 1 September 2026 and has now ended. Retained so the app can explain to a user who remembers the higher figure why their allowance dropped to the standard 1,900 / 3,900.",
+        "verified": true
+      },
       "verified": true,
-      "sourceUrl": "https://docs.github.com/en/copilot/about-github-copilot/plans-for-github-copilot"
+      "sourceUrl": "https://docs.github.com/en/copilot/concepts/billing/organizations-and-enterprises/usage-based-billing",
+      "usagePageUrl": "https://github.com/settings/billing",
+      "interactionArchetypes": [
+        {
+          "id": "gh-light-chat",
+          "label": "Light chat question",
+          "blurb": "A short question to Copilot Chat on a small or economy model, little context attached.",
+          "creditsLow": 0.2,
+          "creditsTypical": 0.6,
+          "creditsHigh": 2,
+          "verified": false
+        },
+        {
+          "id": "gh-standard-chat",
+          "label": "Standard chat with file context",
+          "blurb": "A question with a file or two attached, answered on a mid-tier model.",
+          "creditsLow": 1,
+          "creditsTypical": 3,
+          "creditsHigh": 8,
+          "verified": false
+        },
+        {
+          "id": "gh-agent-task",
+          "label": "Agent task across a few files",
+          "blurb": "Copilot CLI or the cloud agent making a scoped change, reading and writing several files.",
+          "creditsLow": 8,
+          "creditsTypical": 25,
+          "creditsHigh": 70,
+          "verified": false
+        },
+        {
+          "id": "gh-heavy-agent",
+          "label": "Long frontier-model agent session",
+          "blurb": "A long-running agent session on a frontier model across many files, with repeated tool calls.",
+          "creditsLow": 60,
+          "creditsTypical": 180,
+          "creditsHigh": 500,
+          "verified": false
+        }
+      ],
+      "interactionArchetypeNote": "GitHub bills AI credits by model and token volume (input, output and cached), not by a published per-interaction table. These archetypes are estimated planning placeholders derived from the shape of that billing model, not GitHub figures. Check your own usage page for real numbers."
     },
     "foundry": {
       "label": "Microsoft Foundry bring-your-own-model tokens",
@@ -288,8 +378,9 @@
       "medium": { "conservative": 0.75, "expected": 1, "aggressive": 1.5 },
       "high": { "conservative": 0.85, "expected": 1, "aggressive": 1.25 }
     },
-    "githubPremiumRequestsPerHeavyUserPerMonth": 600,
-    "githubPremiumRequestsPerStandardUserPerMonth": 150,
+    "githubAiCreditsPerHeavyUserPerMonth": 3500,
+    "githubAiCreditsPerStandardUserPerMonth": 700,
+    "githubAiCreditAssumptionNote": "Planning placeholders, not GitHub figures. Built from the interactionArchetypes in commercial.githubCopilot at their typical values: a standard developer at roughly 60 chats (3 credits) plus 20 scoped agent tasks (25 credits) lands near 700; a heavy developer at roughly 150 chats, 80 agent tasks and 6 long frontier-model sessions (180 credits) lands near 3,500. Code completions and next edit suggestions are excluded because they are unlimited and never billed on paid plans. Replace both figures from your own GitHub billing usage page before quoting anything.",
     "githubModelTierMultiplier": { "economy": 0.25, "standard": 1, "premium": 5 },
     "kAnonymityMinimum": 5,
     "outlierMaxMonthlyCredits": 500000000

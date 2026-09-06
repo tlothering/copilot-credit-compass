@@ -64,15 +64,15 @@ export function buildCostModel(
   /* ---------------- GitHub Copilot seats ---------------- */
   const github = usage['github-copilot'];
   if (github) {
-    const plan = card.commercial.githubCopilot[github.plan];
+    const plan = card.commercial.githubCopilot.plans[github.plan];
     const monthlyUsd = github.seats * plan.seatMonthlyUsd;
     platformLines.push({
       id: 'github-copilot-seats',
       label: `GitHub Copilot ${github.plan} seats`,
       monthlyUsd,
       annualUsd: monthlyUsd * 12,
-      rateCardRef: `commercial.githubCopilot.${github.plan}`,
-      note: `${plan.includedPremiumRequestsPerUser} premium requests included per user per month`,
+      rateCardRef: `commercial.githubCopilot.plans.${github.plan}`,
+      note: `${plan.includedAiCreditsPerUserPerMonth.toLocaleString('en-GB')} AI credits included per user per month, pooled across the billing entity. Code completions and next edit suggestions are unlimited and never billed.`,
     });
     audit.record(
       'cost:github-copilot-seats',
@@ -80,7 +80,7 @@ export function buildCostModel(
       { seats: github.seats, seatMonthlyPrice: plan.seatMonthlyUsd, plan: github.plan },
       monthlyUsd,
       'USD/month',
-      `commercial.githubCopilot.${github.plan}`,
+      `commercial.githubCopilot.plans.${github.plan}`,
     );
   }
 

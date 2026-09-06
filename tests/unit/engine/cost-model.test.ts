@@ -65,7 +65,21 @@ describe('GitHub Copilot seats', () => {
   ] as const)('%s seats cost $%d each', (plan, price) => {
     const { model } = costFor(['github-copilot'], { 'github-copilot': { seats: 50, plan } });
     expect(platform(model, 'github-copilot-seats')?.monthlyUsd).toBe(50 * price);
-    expect(platform(model, 'github-copilot-seats')?.rateCardRef).toBe(`commercial.githubCopilot.${plan}`);
+    expect(platform(model, 'github-copilot-seats')?.rateCardRef).toBe(
+      `commercial.githubCopilot.plans.${plan}`,
+    );
+  });
+
+  it('states the pooled AI credit allowance and that completions are never billed', () => {
+    const { model } = costFor(['github-copilot'], {
+      'github-copilot': { seats: 50, plan: 'business' },
+    });
+    const note = platform(model, 'github-copilot-seats')?.note ?? '';
+    expect(note).toContain('1,900');
+    expect(note).toContain('AI credits');
+    expect(note).toContain('pooled');
+    expect(note).toMatch(/never billed/i);
+    expect(note).not.toMatch(/premium request/i);
   });
 });
 

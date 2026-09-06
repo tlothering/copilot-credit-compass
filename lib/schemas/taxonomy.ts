@@ -323,14 +323,16 @@ export const WORKLOADS: readonly WorkloadMeta[] = [
   {
     id: 'github-copilot',
     label: 'GitHub Copilot',
-    blurb: 'Developer seats with an included premium-request allowance and metered overage.',
+    blurb:
+      'Developer seats with a pooled AI credit allowance and metered overage. Code completions are unlimited and never billed.',
     meteredInCredits: true,
     hasSeatCost: true,
   },
   {
     id: 'copilot-cowork',
     label: 'Copilot Cowork / Work IQ API',
-    blurb: 'Usage-based agentic task execution billed in Copilot Credits.',
+    blurb:
+      'Usage-based agentic task execution billed in Copilot Credits, and not zero-rated by a Microsoft 365 Copilot seat.',
     meteredInCredits: true,
     hasSeatCost: false,
   },

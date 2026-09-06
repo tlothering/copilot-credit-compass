@@ -264,21 +264,65 @@ export default function MethodologyPage() {
             <Card>
               <CardTitle>{card.commercial.githubCopilot.label}</CardTitle>
               <p className="mt-2 text-2xl font-semibold tabular-nums">
-                ${card.commercial.githubCopilot.business.seatMonthlyUsd.toFixed(2)}
+                ${card.commercial.githubCopilot.plans.business.seatMonthlyUsd.toFixed(2)}
                 <span className="ml-1 text-sm font-normal text-fg-muted">/ seat / month</span>
               </p>
               <p className="mt-1 text-sm text-fg-muted">
                 Business includes{' '}
-                {card.commercial.githubCopilot.business.includedPremiumRequestsPerUser.toLocaleString(
+                {card.commercial.githubCopilot.plans.business.includedAiCreditsPerUserPerMonth.toLocaleString(
                   'en-GB',
                 )}{' '}
-                premium requests per user. Enterprise $
-                {card.commercial.githubCopilot.enterprise.seatMonthlyUsd.toFixed(2)} with{' '}
-                {card.commercial.githubCopilot.enterprise.includedPremiumRequestsPerUser.toLocaleString(
+                AI credits per user per month. Enterprise $
+                {card.commercial.githubCopilot.plans.enterprise.seatMonthlyUsd.toFixed(2)} with{' '}
+                {card.commercial.githubCopilot.plans.enterprise.includedAiCreditsPerUserPerMonth.toLocaleString(
                   'en-GB',
                 )}
-                . Overage ${card.commercial.githubCopilot.overageCreditUsd.toFixed(2)} per request.
+                . Overage ${card.commercial.githubCopilot.overageCreditUsd.toFixed(2)} per AI
+                credit, enabled by default.
               </p>
+              <p className="mt-3 rounded-lg bg-accent-soft/60 px-3 py-2 text-sm text-fg">
+                <strong className="font-semibold">
+                  Code completions and next edit suggestions are unlimited and never billed
+                </strong>{' '}
+                on a paid plan. Only {card.commercial.githubCopilot.billedFeatures.join(', ')} draw
+                AI credits — so most developers never generate any overage at all.
+              </p>
+              <ul className="mt-3 space-y-1 text-sm text-fg-muted">
+                <li>
+                  Allowances are pooled across the {card.commercial.githubCopilot.poolScope}, not
+                  ring-fenced per user, so heavy users draw on quieter colleagues&rsquo; share
+                  before anyone pays overage.
+                </li>
+                <li>
+                  {card.commercial.githubCopilot.creditsRollOver
+                    ? 'Unused credits roll over.'
+                    : 'Unused credits do not roll over.'}{' '}
+                  The pool resets on day {card.commercial.githubCopilot.poolResetDayOfMonth} at{' '}
+                  {card.commercial.githubCopilot.poolResetTimeUtc} UTC.
+                </li>
+                <li>
+                  {card.commercial.githubCopilot.automaticFallbackToCheaperModel
+                    ? 'Requests fall back to a cheaper model once the pool is exhausted.'
+                    : 'There is no automatic fallback to a cheaper model once the pool is exhausted — spend simply continues at the overage rate.'}{' '}
+                  {card.commercial.githubCopilot.userLevelBudgetsCanHaltIndividual
+                    ? 'User-level budgets can halt an individual.'
+                    : ''}
+                </li>
+                {card.commercial.githubCopilot.promotionalAllowance.expired ? (
+                  <li>
+                    Remembering a bigger number? The launch promotion (
+                    {card.commercial.githubCopilot.promotionalAllowance.business.toLocaleString(
+                      'en-GB',
+                    )}{' '}
+                    Business /{' '}
+                    {card.commercial.githubCopilot.promotionalAllowance.enterprise.toLocaleString(
+                      'en-GB',
+                    )}{' '}
+                    Enterprise) ran to{' '}
+                    {card.commercial.githubCopilot.promotionalAllowance.endDate} and has expired.
+                  </li>
+                ) : null}
+              </ul>
               <div className="mt-3 flex items-center gap-2 text-xs">
                 <VerifiedChip verified={card.commercial.githubCopilot.verified} />
                 <Source href={card.commercial.githubCopilot.sourceUrl} />

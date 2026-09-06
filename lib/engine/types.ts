@@ -17,6 +17,8 @@ export interface ConsumptionRate {
   unit: string;
   displayRate: string;
   offsetByM365CopilotLicence: boolean;
+  /** Why a row is (or is not) zero-rated, where the answer is counter-intuitive. */
+  offsetNote?: string;
   verified: boolean;
   sourceUrl: string;
   note?: string;
@@ -52,13 +54,75 @@ export interface SecurityCopilotRate {
   sourceUrl: string;
 }
 
+export interface GithubCopilotPlanRate {
+  label: string;
+  seatMonthlyUsd: number;
+  includedAiCreditsPerUserPerMonth: number;
+}
+
+/**
+ * GitHub Copilot billing, on the AI credits model GitHub moved to on
+ * 2026-06-01. It replaced premium requests entirely.
+ *
+ * Two things here are load-bearing and routinely misunderstood:
+ *
+ *  - Code completions and next edit suggestions are unlimited and never billed
+ *    on a paid plan. Only chat, CLI, the cloud agent, Spaces, Spark and
+ *    third-party coding agents draw credits. Assuming completions are metered
+ *    is the single most common reason a customer over-buys.
+ *  - The included allowance is pooled across the billing entity, not
+ *    ring-fenced per user, so a handful of heavy users can consume quiet
+ *    colleagues' share before anyone hits overage.
+ */
 export interface GithubCopilotRate {
   label: string;
-  business: { seatMonthlyUsd: number; includedPremiumRequestsPerUser: number };
-  enterprise: { seatMonthlyUsd: number; includedPremiumRequestsPerUser: number };
+  billingModel: 'ai-credits';
+  billingModelEffectiveDate: string;
+  aiCreditUsd: number;
+  poolScope: 'billing-entity';
+  poolNote: string;
+  creditsRollOver: boolean;
+  poolResetDayOfMonth: number;
+  poolResetTimeUtc: string;
+  overageEnabledByDefault: boolean;
   overageCreditUsd: number;
+  overagePolicyName: string;
+  /** GitHub does not silently downgrade the model when the pool is exhausted. */
+  automaticFallbackToCheaperModel: boolean;
+  userLevelBudgetsCanHaltIndividual: boolean;
+  codeCompletionsBilled: boolean;
+  nextEditSuggestionsBilled: boolean;
+  unlimitedOnPaidPlans: string[];
+  billedFeatures: string[];
+  plans: { business: GithubCopilotPlanRate; enterprise: GithubCopilotPlanRate };
+  /**
+   * The launch promotion, retained after expiry purely so the UI can explain to
+   * someone who remembers 3,000 or 7,000 credits why their allowance dropped.
+   */
+  promotionalAllowance: {
+    label: string;
+    expired: boolean;
+    startDate: string;
+    endDate: string;
+    business: number;
+    enterprise: number;
+    note: string;
+    verified: boolean;
+  };
   verified: boolean;
   sourceUrl: string;
+  usagePageUrl: string;
+  /** Estimated planning placeholders — GitHub publishes no per-interaction table. */
+  interactionArchetypes: {
+    id: string;
+    label: string;
+    blurb: string;
+    creditsLow: number;
+    creditsTypical: number;
+    creditsHigh: number;
+    verified: boolean;
+  }[];
+  interactionArchetypeNote: string;
 }
 
 export interface FoundryRate {
@@ -129,8 +193,9 @@ export interface ModelAssumptions {
     ConfidenceLevel,
     { conservative: number; expected: number; aggressive: number }
   >;
-  githubPremiumRequestsPerHeavyUserPerMonth: number;
-  githubPremiumRequestsPerStandardUserPerMonth: number;
+  githubAiCreditsPerHeavyUserPerMonth: number;
+  githubAiCreditsPerStandardUserPerMonth: number;
+  githubAiCreditAssumptionNote: string;
   githubModelTierMultiplier: Record<'economy' | 'standard' | 'premium', number>;
   kAnonymityMinimum: number;
   outlierMaxMonthlyCredits: number;
@@ -154,7 +219,7 @@ export type ConsumptionRateId =
   | 'voice-premium-genai-minute'
   | 'retrieval-api-query'
   | 'cowork-task'
-  | 'github-premium-request';
+  | 'github-ai-credit';
 
 export interface RateCard {
   version: string;

@@ -52,6 +52,21 @@ const LICENSED_PCT = (extra = ''): FieldSpec => ({
   effect: 'Very large. This is the single biggest lever in the model — it directly reduces billable credits and drives the licence-offset break-even.',
 });
 
+/**
+ * Cowork is the exception: task execution draws Copilot Credits against the
+ * organisation's Microsoft 365 usage-based billing limit and is NOT zero-rated
+ * by holding a Microsoft 365 Copilot seat, unlike core Copilot Studio agent
+ * activity. The share is still collected because it feeds the licence-offset
+ * break-even, but it must not be presented as an offset here.
+ */
+const LICENSED_PCT_NO_OFFSET: FieldSpec = {
+  key: 'm365CopilotLicensedPct',
+  label: 'Share of these users holding a Microsoft 365 Copilot licence',
+  kind: 'percent',
+  why: 'Recorded for the licence-offset break-even across your estate. Note that, unlike Copilot Studio agent activity, Cowork task execution is not zero-rated by a Microsoft 365 Copilot seat — it consumes Copilot Credits against your Microsoft 365 usage-based billing limit either way.',
+  effect: 'None on Cowork credits, which are billed in full regardless. Contributes to the estate-wide break-even.',
+};
+
 export const USAGE_SPEC: Record<WorkloadId, FieldSpec[]> = {
   'm365-copilot': [
     {
@@ -537,22 +552,22 @@ export const USAGE_SPEC: Record<WorkloadId, FieldSpec[]> = {
       label: 'Developer seats',
       kind: 'number',
       suffix: 'seats',
-      why: 'GitHub Copilot is a per-seat product with an included premium-request allowance per seat.',
-      effect: 'Fixed seat cost plus an allowance that offsets premium-request overage.',
+      why: 'GitHub Copilot is a per-seat product. Each seat contributes an AI credit allowance to a pool shared across the whole billing entity.',
+      effect: 'Fixed seat cost plus a pooled allowance that offsets AI credit overage. Code completions and next edit suggestions are unlimited and never billed.',
     },
     {
       key: 'plan',
       label: 'Plan',
       kind: 'select',
       options: opt(GITHUB_PLANS, (v) => (v === 'business' ? 'Copilot Business' : 'Copilot Enterprise')),
-      why: 'Business and Enterprise differ in seat price and in the size of the included allowance.',
+      why: 'Business and Enterprise differ in seat price and in the size of the included AI credit allowance (1,900 against 3,900 per user per month).',
       effect: 'Enterprise costs more per seat but includes a larger allowance, so heavy estates can be cheaper on Enterprise.',
     },
     {
       key: 'heavyUserPct',
       label: 'Share who are heavy agent or code-review users',
       kind: 'percent',
-      why: 'A minority of developers generate the overwhelming majority of premium requests.',
+      why: 'A minority of developers generate the overwhelming majority of AI credit consumption, and because the allowance is pooled they draw on quieter colleagues\u2019 share before anyone pays overage.',
       effect: 'Large. Overage is concentrated almost entirely in this group.',
     },
     {
@@ -560,8 +575,8 @@ export const USAGE_SPEC: Record<WorkloadId, FieldSpec[]> = {
       label: 'Preferred model tier',
       kind: 'select',
       options: opt(GITHUB_MODEL_TIERS, (v) => v[0]!.toUpperCase() + v.slice(1)),
-      why: 'Premium models consume more of the request allowance per interaction.',
-      effect: 'Multiplicative on premium-request consumption and therefore on overage.',
+      why: 'GitHub bills by model and token volume, so premium models consume more AI credits per interaction.',
+      effect: 'Multiplicative on AI credit consumption and therefore on overage. There is no automatic fallback to a cheaper model when the pool runs out.',
     },
   ],
 
@@ -582,7 +597,7 @@ export const USAGE_SPEC: Record<WorkloadId, FieldSpec[]> = {
       why: 'Tasks are multi-step and cost considerably more than a single chat message.',
       effect: 'Linear, at a materially higher per-unit rate than chat.',
     },
-    LICENSED_PCT(),
+    LICENSED_PCT_NO_OFFSET,
   ],
 
   'foundry-byom': [

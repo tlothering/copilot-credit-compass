@@ -43,8 +43,26 @@ function zebra(ws: Worksheet, from: number, to: number) {
   }
 }
 
-function widths(ws: Worksheet, w: number[]) {
-  w.forEach((width, i) => {
+/**
+ * Aggregate formula over a body range, guarding the empty case.
+ *
+ * Every table here computes `start = rowCount + 1` before the loop and
+ * `end = rowCount` after it, so a table with no rows yields `end = start - 1`
+ * and would emit an inverted range like `SUM(C5:C4)`. Excel normalises that
+ * silently, but it is malformed and reachable through the export API with an
+ * empty workload selection, so emit a literal instead.
+ */
+function agg(
+  fn: 'SUM' | 'MAX' | 'MIN' | 'AVERAGE' | 'STDEV',
+  col: string,
+  start: number,
+  end: number,
+) {
+  if (end < start) return 0;
+  return { formula: `${fn}(${col}${start}:${col}${end})`, date1904: false };
+}
+
+function widths(ws: Worksheet, w: number[]) {  w.forEach((width, i) => {
     ws.getColumn(i + 1).width = width;
   });
 }
@@ -161,18 +179,43 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
     sourceUrl: c.securityCopilot.sourceUrl,
   });
   rateRows.push({
-    key: 'githubCopilot.business',
+    key: 'githubCopilot.plans.business',
     label: `${c.githubCopilot.label} — Business seat`,
-    value: c.githubCopilot.business.seatMonthlyUsd,
+    value: c.githubCopilot.plans.business.seatMonthlyUsd,
     unit: 'USD / month',
     verified: c.githubCopilot.verified,
     sourceUrl: c.githubCopilot.sourceUrl,
   });
   rateRows.push({
+    key: 'githubCopilot.plans.business.includedAiCredits',
+    label: 'GitHub Copilot Business — included AI credits (pooled, no rollover)',
+    value: c.githubCopilot.plans.business.includedAiCreditsPerUserPerMonth,
+    unit: 'AI credits / user / month',
+    verified: c.githubCopilot.verified,
+    sourceUrl: c.githubCopilot.sourceUrl,
+  });
+  rateRows.push({
+    key: 'githubCopilot.plans.enterprise',
+    label: `${c.githubCopilot.label} — Enterprise seat`,
+    value: c.githubCopilot.plans.enterprise.seatMonthlyUsd,
+    unit: 'USD / month',
+    verified: c.githubCopilot.verified,
+    sourceUrl: c.githubCopilot.sourceUrl,
+  });
+  rateRows.push({
+    key: 'githubCopilot.plans.enterprise.includedAiCredits',
+    label: 'GitHub Copilot Enterprise — included AI credits (pooled, no rollover)',
+    value: c.githubCopilot.plans.enterprise.includedAiCreditsPerUserPerMonth,
+    unit: 'AI credits / user / month',
+    verified: c.githubCopilot.verified,
+    sourceUrl: c.githubCopilot.sourceUrl,
+  });
+  rateRows.push({
     key: 'githubCopilot.overage',
-    label: 'GitHub Copilot premium request overage',
+    label:
+      'GitHub Copilot AI credit overage (on by default; code completions unlimited and never billed)',
     value: c.githubCopilot.overageCreditUsd,
-    unit: 'USD / request',
+    unit: 'USD / AI credit',
     verified: c.githubCopilot.verified,
     sourceUrl: c.githubCopilot.sourceUrl,
   });
@@ -281,7 +324,7 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
   zebra(volume, volStart, volEnd);
   const volTotal = volume.addRow(['Total units / month', '', null, '', '', '']);
   volTotal.font = { bold: true };
-  volTotal.getCell(3).value = { formula: `SUM(C${volStart}:C${volEnd})`, date1904: false };
+  volTotal.getCell(3).value = agg('SUM', 'C', volStart, volEnd);
   volTotal.getCell(3).numFmt = INT;
 
   const volRowOf = new Map<string, number>();
@@ -341,10 +384,10 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
   const credTotal = creditsWs.addRow(['Total', '', null, '', null, '', null, null]);
   credTotal.font = { bold: true };
   const ct = credTotal.number;
-  credTotal.getCell(3).value = { formula: `SUM(C${credStart}:C${credEnd})`, date1904: false };
-  credTotal.getCell(5).value = { formula: `SUM(E${credStart}:E${credEnd})`, date1904: false };
-  credTotal.getCell(7).value = { formula: `SUM(G${credStart}:G${credEnd})`, date1904: false };
-  credTotal.getCell(8).value = { formula: `SUM(H${credStart}:H${credEnd})`, date1904: false };
+  credTotal.getCell(3).value = agg('SUM', 'C', credStart, credEnd);
+  credTotal.getCell(5).value = agg('SUM', 'E', credStart, credEnd);
+  credTotal.getCell(7).value = agg('SUM', 'G', credStart, credEnd);
+  credTotal.getCell(8).value = agg('SUM', 'H', credStart, credEnd);
   [3, 5, 7, 8].forEach((c) => (credTotal.getCell(c).numFmt = INT));
 
   const BILLABLE = `CreditModel!$H$${ct}`;
@@ -420,10 +463,12 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
   funding.addRow([]);
   const cheapest = funding.addRow(['Cheapest eligible option (live)', '', '', null]);
   cheapest.font = { bold: true };
-  cheapest.getCell(4).value = {
-    formula: `MIN(D${fundStart}:D${fundStart + result.fundingOptions.length - 1})`,
-    date1904: false,
-  };
+  cheapest.getCell(4).value = agg(
+    'MIN',
+    'D',
+    fundStart,
+    fundStart + result.fundingOptions.length - 1,
+  );
   cheapest.getCell(4).numFmt = MONEY0;
   funding.addRow([
     'Note',
@@ -480,18 +525,21 @@ export async function buildXlsx({ answers, result }: ExportInput): Promise<Blob>
   const tn = cashTotal.number;
   [4, 5, 6, 7].forEach((c) => {
     const col = String.fromCharCode(64 + c);
-    cashTotal.getCell(c).value = { formula: `SUM(${col}${cashStart}:${col}${cashEnd})`, date1904: false };
+    cashTotal.getCell(c).value = agg('SUM', col, cashStart, cashEnd);
     cashTotal.getCell(c).numFmt = c === 7 ? MONEY0 : INT;
   });
   cash.addRow([]);
   const peak = cash.addRow(['Peak month credits', '', '', null]);
-  peak.getCell(4).value = { formula: `MAX(E${cashStart}:E${cashEnd})`, date1904: false };
+  peak.getCell(4).value = agg('MAX', 'E', cashStart, cashEnd);
   peak.getCell(4).numFmt = INT;
   const cv = cash.addRow(['Coefficient of variation', '', '', null]);
-  cv.getCell(4).value = {
-    formula: `IFERROR(STDEV(E${cashStart}:E${cashEnd})/AVERAGE(E${cashStart}:E${cashEnd}),0)`,
-    date1904: false,
-  };
+  cv.getCell(4).value =
+    cashEnd < cashStart
+      ? 0
+      : {
+          formula: `IFERROR(STDEV(E${cashStart}:E${cashEnd})/AVERAGE(E${cashStart}:E${cashEnd}),0)`,
+          date1904: false,
+        };
   cv.getCell(4).numFmt = DEC2;
   cash.addRow([
     'Reading',

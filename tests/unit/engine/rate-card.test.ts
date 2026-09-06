@@ -66,9 +66,84 @@ describe('rate card integrity (constraint C6)', () => {
     for (const id of ['classic-answer', 'generative-answer', 'voice-genai-minute'] as const) {
       expect(consumptionRate(card, id).verified, id).toBe(true);
     }
-    for (const id of ['retrieval-api-query', 'cowork-task', 'github-premium-request'] as const) {
+    for (const id of ['retrieval-api-query', 'cowork-task'] as const) {
       expect(consumptionRate(card, id).verified, id).toBe(false);
     }
+  });
+
+  describe('GitHub Copilot AI credits (billing model change of 2026-06-01)', () => {
+    const gh = card.commercial.githubCopilot;
+
+    it('prices an AI credit at one cent and carries it 1:1 onto the credit meter', () => {
+      expect(gh.billingModel).toBe('ai-credits');
+      expect(gh.billingModelEffectiveDate).toBe('2026-06-01');
+      expect(gh.aiCreditUsd).toBe(0.01);
+      expect(gh.overageCreditUsd).toBe(0.01);
+      expect(creditsPerUnit(card, 'github-ai-credit')).toBe(1);
+      expect(consumptionRate(card, 'github-ai-credit').unit).toBe('AI credit');
+      expect(consumptionRate(card, 'github-ai-credit').verified).toBe(true);
+      expect(consumptionRate(card, 'github-ai-credit').sourceUrl).toMatch(/docs\.github\.com/);
+    });
+
+    it('includes 1,900 Business and 3,900 Enterprise credits at unchanged seat prices', () => {
+      expect(gh.plans.business.seatMonthlyUsd).toBe(19);
+      expect(gh.plans.business.includedAiCreditsPerUserPerMonth).toBe(1_900);
+      expect(gh.plans.enterprise.seatMonthlyUsd).toBe(39);
+      expect(gh.plans.enterprise.includedAiCreditsPerUserPerMonth).toBe(3_900);
+    });
+
+    it('pools the allowance, never rolls it over, and resets on day one at midnight UTC', () => {
+      expect(gh.poolScope).toBe('billing-entity');
+      expect(gh.creditsRollOver).toBe(false);
+      expect(gh.poolResetDayOfMonth).toBe(1);
+      expect(gh.poolResetTimeUtc).toBe('00:00');
+      expect(gh.poolNote).toBeTruthy();
+    });
+
+    it('never bills code completions or next edit suggestions', () => {
+      expect(gh.codeCompletionsBilled).toBe(false);
+      expect(gh.nextEditSuggestionsBilled).toBe(false);
+      expect(gh.unlimitedOnPaidPlans.length).toBeGreaterThan(0);
+      for (const f of gh.billedFeatures) {
+        expect(f.toLowerCase()).not.toContain('completion');
+      }
+    });
+
+    it('enables overage by default with no silent downgrade to a cheaper model', () => {
+      expect(gh.overageEnabledByDefault).toBe(true);
+      expect(gh.automaticFallbackToCheaperModel).toBe(false);
+      expect(gh.userLevelBudgetsCanHaltIndividual).toBe(true);
+    });
+
+    it('retains the expired launch promotion so a dropped allowance can be explained', () => {
+      expect(gh.promotionalAllowance.expired).toBe(true);
+      expect(gh.promotionalAllowance.business).toBe(3_000);
+      expect(gh.promotionalAllowance.enterprise).toBe(7_000);
+      expect(gh.promotionalAllowance.startDate).toBe('2026-06-01');
+      expect(gh.promotionalAllowance.endDate).toBe('2026-09-01');
+      expect(gh.promotionalAllowance.business).toBeGreaterThan(
+        gh.plans.business.includedAiCreditsPerUserPerMonth,
+      );
+    });
+
+    it('flags the interaction archetypes as unverified planning placeholders', () => {
+      expect(gh.interactionArchetypes.length).toBeGreaterThanOrEqual(4);
+      for (const a of gh.interactionArchetypes) {
+        expect(a.verified, a.id).toBe(false);
+        expect(a.creditsLow, a.id).toBeLessThanOrEqual(a.creditsTypical);
+        expect(a.creditsTypical, a.id).toBeLessThanOrEqual(a.creditsHigh);
+      }
+      expect(gh.interactionArchetypeNote).toBeTruthy();
+    });
+
+    it('places a standard user inside the Business allowance and a heavy user outside it', () => {
+      const { githubAiCreditsPerStandardUserPerMonth: std, githubAiCreditsPerHeavyUserPerMonth: hvy } =
+        card.modelAssumptions;
+      expect(std).toBeLessThan(gh.plans.business.includedAiCreditsPerUserPerMonth);
+      expect(hvy).toBeGreaterThan(gh.plans.business.includedAiCreditsPerUserPerMonth);
+      expect(hvy).toBeLessThan(gh.plans.enterprise.includedAiCreditsPerUserPerMonth);
+      expect(card.modelAssumptions.githubAiCreditAssumptionNote).toBeTruthy();
+    });
   });
 
   it('throws a helpful error for an unknown rate id', () => {
@@ -147,8 +222,10 @@ describe('unverifiedRows', () => {
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) expect(row.ref).toBeTruthy();
     const refs = rows.map((r) => r.ref);
-    // github-premium-request is a derived rate and must be flagged.
-    expect(refs).toContain('consumption.github-premium-request');
+    // cowork-task is a derived rate and must be flagged.
+    expect(refs).toContain('consumption.cowork-task');
+    // github-ai-credit is now documented by GitHub, so it must NOT be flagged.
+    expect(refs).not.toContain('consumption.github-ai-credit');
   });
 
   it('omits rows that are verified', () => {

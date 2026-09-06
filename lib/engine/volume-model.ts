@@ -427,45 +427,53 @@ export function buildVolumeModel(
   /* ---------------- GitHub Copilot ---------------- */
   const github = usage['github-copilot'];
   if (github) {
+    const plan = card.commercial.githubCopilot.plans[github.plan];
     const heavyShare = github.heavyUserPct / 100;
-    const perUserRequests =
-      heavyShare * assumptions.githubPremiumRequestsPerHeavyUserPerMonth +
-      (1 - heavyShare) * assumptions.githubPremiumRequestsPerStandardUserPerMonth;
+    // Code completions and next edit suggestions are unlimited and never billed,
+    // so they are deliberately absent from these per-user rates.
+    const perUserCredits =
+      heavyShare * assumptions.githubAiCreditsPerHeavyUserPerMonth +
+      (1 - heavyShare) * assumptions.githubAiCreditsPerStandardUserPerMonth;
     const tierMultiplier = assumptions.githubModelTierMultiplier[github.modelTier] ?? 1;
-    const totalRequests = github.seats * perUserRequests * tierMultiplier;
-    const included =
-      github.seats * card.commercial.githubCopilot[github.plan].includedPremiumRequestsPerUser;
-    const overage = Math.max(0, totalRequests - included);
+    const totalCredits = github.seats * perUserCredits * tierMultiplier;
+    // The allowance is pooled across the billing entity rather than ring-fenced
+    // per user, so the comparison is entity-total against entity-total.
+    const included = github.seats * plan.includedAiCreditsPerUserPerMonth;
+    const overage = Math.max(0, totalCredits - included);
 
     audit.record(
-      'volume:github-copilot:premium-requests',
-      'premiumRequests = seats × (heavyPct × heavyRate + (1 − heavyPct) × standardRate) × modelTierMultiplier',
+      'volume:github-copilot:ai-credits',
+      'aiCredits = seats × (heavyPct × heavyRate + (1 − heavyPct) × standardRate) × modelTierMultiplier',
       {
         seats: github.seats,
         heavyUserPct: github.heavyUserPct,
-        heavyRate: assumptions.githubPremiumRequestsPerHeavyUserPerMonth,
-        standardRate: assumptions.githubPremiumRequestsPerStandardUserPerMonth,
+        heavyRate: assumptions.githubAiCreditsPerHeavyUserPerMonth,
+        standardRate: assumptions.githubAiCreditsPerStandardUserPerMonth,
         modelTier: github.modelTier,
         modelTierMultiplier: tierMultiplier,
+        billedFeatures: card.commercial.githubCopilot.billedFeatures.join(', '),
+        codeCompletionsBilled: card.commercial.githubCopilot.codeCompletionsBilled,
       },
-      totalRequests,
-      'premium requests/month',
+      totalCredits,
+      'AI credits/month',
     );
 
     push('github-copilot', {
       lineId: 'github-copilot:overage',
-      label: 'GitHub Copilot — premium requests beyond the included allowance',
+      label: 'GitHub Copilot — AI credits beyond the pooled included allowance',
       quantity: overage,
-      rateId: 'github-premium-request',
+      rateId: 'github-ai-credit',
       internalShare: 1,
       licensedShareOfInternal: 0,
       formula:
-        'overageRequests = max(0, premiumRequests − seats × includedPremiumRequestsPerUser)',
+        'overageCredits = max(0, aiCredits − seats × includedAiCreditsPerUserPerMonth) — allowance pooled at the billing entity, no rollover',
       inputs: {
-        premiumRequests: totalRequests,
+        aiCredits: totalCredits,
         seats: github.seats,
-        includedPremiumRequestsPerUser:
-          card.commercial.githubCopilot[github.plan].includedPremiumRequestsPerUser,
+        includedAiCreditsPerUserPerMonth: plan.includedAiCreditsPerUserPerMonth,
+        pooledIncludedAiCredits: included,
+        poolScope: card.commercial.githubCopilot.poolScope,
+        creditsRollOver: card.commercial.githubCopilot.creditsRollOver,
         plan: github.plan,
       },
     });

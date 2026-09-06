@@ -112,13 +112,25 @@ describe('rates that a licence never offsets', () => {
     expect(model.offsettableRemainingCredits).toBe(0);
   });
 
-  it('meters GitHub premium-request overage in full', () => {
+  it('meters GitHub AI credit overage in full', () => {
     const { model } = creditsFor(
       ['github-copilot'],
       { 'github-copilot': { seats: 1000, plan: 'business', heavyUserPct: 100, modelTier: 'premium' } },
       { assumeAllInternalLicensed: true },
     );
     expect(model.offsetCredits).toBe(0);
+  });
+
+  it('meters Cowork tasks in full even when every user holds an M365 Copilot licence', () => {
+    // Cowork is not zero-rated by a seat, unlike Copilot Studio agent activity.
+    const { model } = creditsFor(
+      ['copilot-cowork'],
+      { 'copilot-cowork': { users: 200, tasksPerUserPerMonth: 20, m365CopilotLicensedPct: 100 } },
+      { assumeAllInternalLicensed: true },
+    );
+    expect(model.offsetCredits).toBe(0);
+    expect(model.offsettableRemainingCredits).toBe(0);
+    expect(near(model.billableCredits)).toBe(near(model.grossCredits));
   });
 });
 
