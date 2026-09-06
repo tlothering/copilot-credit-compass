@@ -1,0 +1,60 @@
+# ---------------------------------------------------------------------------
+# Docker build context exclusions
+#
+# The builder stage runs `COPY . .`, so anything not excluded here is copied
+# into the image. Three of these matter more than the rest:
+#
+#   node_modules  The deps stage installs Linux binaries with `npm ci`. Copying
+#                 the host tree over the top replaces them with whatever the
+#                 developer's machine produced — on Windows or macOS that means
+#                 native modules for the wrong platform.
+#
+#   .data         The file-store fallback writes real benchmark submissions
+#                 here. Next.js traces the file into `.next/standalone/.data/`
+#                 at build time, and the runtime stage copies that directory
+#                 wholesale, so local rows would ship inside the image and be
+#                 served as public benchmark statistics on first boot.
+#
+#   .env*         Never let a local secret become an image layer.
+# ---------------------------------------------------------------------------
+
+# Dependencies and build output — regenerated inside the image
+node_modules
+.next
+out
+
+# Local persistence. See note above: this must never reach the image.
+.data
+
+# Version control and CI definitions
+.git
+.gitignore
+.github
+
+# Test, coverage and report artefacts
+coverage
+e2e-results
+playwright-report
+tests
+playwright.config.ts
+vitest.config.ts
+
+# Local environment and editor state
+.env
+.env.*
+.vscode
+.idea
+*.log
+npm-debug.log*
+
+# Infrastructure and documentation — not needed by the running server
+infra
+azuredeploy.json
+createUiDefinition.json
+azure.yaml
+Dockerfile
+.dockerignore
+*.md
+
+# Incremental TypeScript state
+tsconfig.tsbuildinfo

@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "verify:standalone": "node scripts/verify-standalone.mjs",
     "bicep:build": "az bicep build --file infra/main.bicep --outfile azuredeploy.json"
   },
   "engines": {

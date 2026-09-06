@@ -118,6 +118,7 @@ impression, so the default path does not.
 | `npm test` | Vitest — 432 tests |
 | `npm run test:coverage` | Coverage, gated at 95% branch on `lib/engine/**` |
 | `npm run test:e2e` | Playwright — wizard, exports, axe-core in both themes |
+| `npm run verify:standalone` | Inspect the built container artefact for missing traced files |
 | `npm run bicep:build` | Recompile `infra/main.bicep` to `azuredeploy.json` |
 
 ---

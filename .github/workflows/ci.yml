@@ -53,6 +53,14 @@ jobs:
       - name: Build
         run: npm run build
 
+      # `next start` and `npm run dev` run against the full node_modules tree,
+      # so they cannot catch a dependency the tracer failed to bundle. This
+      # inspects the standalone artefact the container actually ships — it was
+      # added after the PDF export was found to 500 in the image while passing
+      # every local test, because pdfkit's fonts were never traced in.
+      - name: Verify standalone artefact
+        run: npm run verify:standalone
+
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest

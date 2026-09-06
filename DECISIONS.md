@@ -328,6 +328,35 @@ a revision reports healthy and smoke-tests the live URL, because the deployment
 cannot grant the identity access to GHCR — that failure has to surface loudly
 rather than as a container stuck pulling an image.
 
+**56a. There is a `.dockerignore`, and it is load-bearing.**
+The builder stage runs `COPY . .`. Without exclusions that copies the host
+`node_modules` over the Linux tree `npm ci` just installed in the deps stage —
+on a Windows or macOS developer machine that means native modules built for the
+wrong platform. It also copies `.data/`, which is where the file-store fallback
+writes real benchmark submissions. Next.js traces that file at build time into
+`.next/standalone/.data/`, and the runtime stage copies `.next/standalone`
+wholesale, so local rows would ship inside the image and be served as public
+benchmark statistics on first boot. Both were live defects, found by assembling
+the runtime filesystem by hand and booting it.
+
+**56b. `outputFileTracingIncludes` pins pdfkit's standard fonts.**
+`@react-pdf/renderer` depends on pdfkit, which loads the AFM metrics for the 14
+standard PDF fonts through a `require()` whose path is assembled at run time.
+Next's static tracer cannot follow it, so the entire `standard-fonts` directory
+was omitted from the standalone bundle. Dev and `next start` both worked,
+because the full `node_modules` tree is on disk — the failure existed only
+inside the container, as a 500 on the PDF export. The board pack is the export
+most likely to matter to the person paying for this, so it failing only in
+production is the worst possible shape for a bug.
+
+**56c. `npm run verify:standalone` inspects the artefact, not the dev server.**
+The two defects above share a root cause: every test ran against a tree that
+had more files on disk than the image would. `scripts/verify-standalone.mjs`
+asserts against `.next/standalone` itself — entrypoint, rate card, pdfkit
+fonts, each server-external package, and the `.dockerignore` entries — and runs
+in CI straight after the build. It is deliberately a filesystem check rather
+than another HTTP test, because the failure mode is a missing file.
+
 ---
 
 ## 8. Things deliberately not done
