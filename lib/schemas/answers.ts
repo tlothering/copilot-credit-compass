@@ -12,7 +12,7 @@ import {
   M365_BASE_PLANS,
   MACC_BANDS,
   RAMP_CURVES,
-  REGIONS,
+  regionSchema,
   SEASONALITY_PROFILES,
   SECURITY_COVERAGE,
   SECURITY_DEPLOYMENT,
@@ -26,7 +26,7 @@ const positiveInt = z.number().int().min(0);
 
 export const profileSchema = z.object({
   industry: z.enum(INDUSTRIES),
-  region: z.enum(REGIONS),
+  region: regionSchema,
   employeeBand: z.enum(EMPLOYEE_BANDS),
   knowledgeWorkers: positiveInt.max(5_000_000),
   azureAgreement: z.enum(AZURE_AGREEMENTS),
@@ -316,7 +316,7 @@ export function defaultAnswers(): Answers {
   return {
     profile: {
       industry: 'Other',
-      region: 'NA',
+      region: 'Northern America',
       employeeBand: '1k-5k',
       knowledgeWorkers: 1000,
       azureAgreement: 'none',

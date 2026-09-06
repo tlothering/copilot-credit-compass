@@ -16,10 +16,10 @@ function rec(over: Partial<StoredRecord> = {}): StoredRecord {
   return {
     id: `00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`,
     submittedAt: '2026-01-15T00:00:00.000Z',
-    cohort: 'Financial Services|UK&I|5k-25k',
+    cohort: 'Financial Services|Northern Europe|5k-25k',
     rateCardVersion: 'v1',
     industry: 'Financial Services',
-    region: 'UK&I',
+    region: 'Northern Europe',
     employeeBand: '5k-25k',
     knowledgeWorkerBand: '1k-5k',
     workloads: ['m365-copilot', 'copilot-studio-agents'],
@@ -113,15 +113,15 @@ describe('k-anonymity', () => {
     const s = buildSummary(rows);
     expect(s.cohorts).toHaveLength(1);
     expect(s.cohorts[0]!.granularity).toBe('industry+region');
-    expect(s.cohorts[0]!.cohort).toBe('Financial Services|UK&I|*');
+    expect(s.cohorts[0]!.cohort).toBe('Financial Services|Northern Europe|*');
     expect(s.cohorts[0]!.n).toBe(6);
   });
 
   it('rolls up to industry when the region is also too thin', () => {
     const rows = [
-      ...Array.from({ length: 2 }, () => rec({ region: 'UK&I', employeeBand: '5k-25k' })),
-      ...Array.from({ length: 2 }, () => rec({ region: 'NA', employeeBand: '25k-100k' })),
-      ...Array.from({ length: 2 }, () => rec({ region: 'ASEAN', employeeBand: '1k-5k' })),
+      ...Array.from({ length: 2 }, () => rec({ region: 'Northern Europe', employeeBand: '5k-25k' })),
+      ...Array.from({ length: 2 }, () => rec({ region: 'Northern America', employeeBand: '25k-100k' })),
+      ...Array.from({ length: 2 }, () => rec({ region: 'South-eastern Asia', employeeBand: '1k-5k' })),
     ];
     const s = buildSummary(rows);
     expect(s.cohorts).toHaveLength(1);
@@ -131,9 +131,9 @@ describe('k-anonymity', () => {
 
   it('falls back to a single global cohort when even the industry is thin', () => {
     const rows = [
-      ...Array.from({ length: 2 }, () => rec({ industry: 'Retail & CPG', region: 'NA' })),
-      ...Array.from({ length: 2 }, () => rec({ industry: 'Manufacturing', region: 'UK&I' })),
-      ...Array.from({ length: 2 }, () => rec({ industry: 'Education', region: 'ASEAN' })),
+      ...Array.from({ length: 2 }, () => rec({ industry: 'Retail & CPG', region: 'Northern America' })),
+      ...Array.from({ length: 2 }, () => rec({ industry: 'Manufacturing', region: 'Northern Europe' })),
+      ...Array.from({ length: 2 }, () => rec({ industry: 'Education', region: 'South-eastern Asia' })),
     ];
     const s = buildSummary(rows);
     expect(s.cohorts).toHaveLength(1);
@@ -145,7 +145,7 @@ describe('k-anonymity', () => {
   it('leaves a below-threshold remainder unpublished entirely', () => {
     const rows = [
       ...Array.from({ length: k }, () => rec()),
-      ...Array.from({ length: 2 }, () => rec({ industry: 'Education', region: 'ASEAN' })),
+      ...Array.from({ length: 2 }, () => rec({ industry: 'Education', region: 'South-eastern Asia' })),
     ];
     const s = buildSummary(rows);
     expect(s.cohorts).toHaveLength(1);
@@ -176,7 +176,7 @@ describe('summary filtering and content', () => {
     ];
     expect(buildSummary(rows).cohorts).toHaveLength(2);
     expect(buildSummary(rows, { industry: 'Financial Services' }).cohorts).toHaveLength(1);
-    expect(buildSummary(rows, { region: 'NA' }).cohorts).toHaveLength(0);
+    expect(buildSummary(rows, { region: 'Northern America' }).cohorts).toHaveLength(0);
     expect(buildSummary(rows, { employeeBand: '5k-25k' }).cohorts).toHaveLength(2);
   });
 

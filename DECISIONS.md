@@ -165,6 +165,69 @@ is not a warning, it is an apology.
 It changes as you type. A screen-reader user gets the same live feedback a
 sighted user does — which is the entire point of the sticky rail.
 
+**28a. Regions follow UN M49, not Microsoft's field taxonomy.**
+SPEC §5 seeded the region list with Microsoft commercial area names: NA, LATAM,
+UK&I, Western Europe, Nordics, CEE, MEA, India, Japan, ANZ, ASEAN, Greater
+China. That list is an artefact of how Microsoft organises its sales
+organisation, and several entries are not regions at all — ASEAN is a trade
+bloc, India and Japan are countries sitting beside continents, and "Greater
+China" is a contested political term. A user outside Microsoft's field had to
+guess which bucket they were in, and two users in Lisbon could reasonably pick
+differently.
+
+The replacement is the UN M49 sub-region level (UN Statistics Division,
+"Standard Country or Area Codes for Statistical Use"), which also underpins
+Unicode CLDR territory containment. It is published, stable, politically
+neutral, and means the same thing in this benchmark as in any other dataset —
+which matters for a tool whose output people are meant to compare against
+something.
+
+This is a deliberate divergence from SPEC.md. The spec is left unedited as the
+record of what was originally commissioned.
+
+**28b. All seventeen sub-regions ship, including the Pacific ones.**
+Melanesia, Micronesia and Polynesia will realistically never see a submission,
+and it is tempting to trim them. Trimming is how you end up with a bespoke list
+again — the moment you hand-pick, you own the taxonomy and every future
+argument about it. The benchmark's roll-up already absorbs thin cohorts by
+dropping the region, so the cost of carrying them is a longer `<select>` and
+nothing else.
+
+Seventeen flat options is genuinely worse to use than twelve, so `SelectField`
+gained `<optgroup>` support and the picker is grouped under the five M49
+top-level regions. Grouping is driven by consecutive runs in `REGIONS`, so a
+unit test asserts each group forms one contiguous run — a reordering would
+otherwise render the same heading twice with no other symptom.
+
+**28c. Legacy region values are migrated on read, not left to fail.**
+Both benchmark stores parse with `safeParse` and push only on success, so a
+record carrying `UK&I` after the rename would not error — it would silently
+disappear from the benchmark, taking the cohort's `n` down with it and
+tightening k-anonymity for everyone else in it. The same applies to a browser
+holding a cached bundle and to a half-finished session restored from
+sessionStorage across the deploy.
+
+So `regionSchema` is a `z.preprocess` over the enum, shared by the answer
+schema and the benchmark record schema, backed by an explicit alias map.
+Verified against the real thing: 21 stored records written under `UK&I` were
+read back, remapped to Northern Europe and regrouped into the correct cohort
+with nothing dropped.
+
+Two mappings are lossy and worth stating plainly:
+
+- **MEA** spanned Western Asia *and* both African sub-regions. A stored record
+  does not say which, so it resolves to Western Asia and some African
+  respondents will have been relabelled. This is a property of the old
+  taxonomy, not of the migration — it is the reason for the change.
+- **Western Europe** exists in both lists but Microsoft's usually included
+  Italy, Spain and Portugal, which M49 places in Southern Europe. The label is
+  unchanged, so those records pass straight through. Deliberately not aliased:
+  aliasing a currently valid value would shadow real answers from new users.
+
+The Cosmos partition key on existing documents still contains the old region
+string. That is immutable and harmless — `buildSummary` recomputes the cohort
+key from the record's fields and never reads the stored `cohort`.
+
 ---
 
 ## 4. Persistence and the benchmark

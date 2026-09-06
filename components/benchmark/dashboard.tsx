@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, CardTitle } from '@/components/ui/primitives';
 import { DataTable } from '@/components/results/chart-frame';
 import { SelectField } from '@/components/wizard/fields';
-import { EMPLOYEE_BANDS, INDUSTRIES, REGIONS, WORKLOAD_IDS, workloadMeta } from '@/lib/schemas/taxonomy';
+import { EMPLOYEE_BANDS, INDUSTRIES, REGION_OPTIONS, WORKLOAD_IDS, workloadMeta } from '@/lib/schemas/taxonomy';
 import type { WorkloadId } from '@/lib/schemas/taxonomy';
 import { fundingOptionLabel } from '@/lib/benchmark/labels';
 // Imported, never restated. A local copy of this shape in the landing ticker
@@ -24,6 +24,12 @@ const ANY = '__all__';
 const opts = (values: readonly string[], allLabel: string) => [
   { value: ANY, label: allLabel },
   ...values.map((v) => ({ value: v, label: v })),
+];
+
+/** Same grouping as the wizard picker, with an ungrouped "all" row on top. */
+const REGION_FILTER_OPTIONS = [
+  { value: ANY, label: 'All regions' },
+  ...REGION_OPTIONS.map((o) => ({ ...o, value: o.value as string })),
 ];
 
 export function BenchmarkDashboard() {
@@ -86,7 +92,7 @@ export function BenchmarkDashboard() {
             <SelectField
               id="f-region"
               value={region}
-              options={opts(REGIONS, 'All regions')}
+              options={REGION_FILTER_OPTIONS}
               onChange={setRegion}
             />
           </Filter>

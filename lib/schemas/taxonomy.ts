@@ -2,6 +2,8 @@
  * Fixed taxonomies. These are shape-only descriptors — never identity (constraint C1).
  */
 
+import { z } from 'zod';
+
 export const INDUSTRIES = [
   'Financial Services',
   'Healthcare & Life Sciences',
@@ -18,20 +20,138 @@ export const INDUSTRIES = [
   'Other',
 ] as const;
 
+/**
+ * Geographic regions follow the UN M49 standard (UN Statistics Division,
+ * "Standard Country or Area Codes for Statistical Use", Series M No. 49), which
+ * is also the basis for Unicode CLDR territory containment.
+ *
+ * These replace an earlier list of Microsoft field/area names — NA, LATAM,
+ * UK&I, Nordics, CEE, MEA, ANZ, ASEAN, Greater China — which were internal
+ * commercial groupings rather than geography. Several were not regions at all:
+ * ASEAN is a trade bloc, India and Japan are countries, and "Greater China" is
+ * a contested political term. Anyone outside Microsoft's field organisation had
+ * to guess which bucket they belonged to.
+ *
+ * The full sub-region level is used rather than a hand-picked subset. Trimming
+ * it would re-create exactly the bespoke taxonomy this replaces, and the
+ * benchmark's roll-up already absorbs thin cohorts by dropping the region.
+ */
 export const REGIONS = [
-  'NA',
-  'LATAM',
-  'UK&I',
+  // Africa
+  'Northern Africa',
+  'Sub-Saharan Africa',
+  // Americas
+  'Latin America and the Caribbean',
+  'Northern America',
+  // Asia
+  'Central Asia',
+  'Eastern Asia',
+  'South-eastern Asia',
+  'Southern Asia',
+  'Western Asia',
+  // Europe
+  'Eastern Europe',
+  'Northern Europe',
+  'Southern Europe',
   'Western Europe',
-  'Nordics',
-  'CEE',
-  'MEA',
-  'India',
-  'Japan',
-  'ANZ',
-  'ASEAN',
-  'Greater China',
+  // Oceania
+  'Australia and New Zealand',
+  'Melanesia',
+  'Micronesia',
+  'Polynesia',
 ] as const;
+
+/** The five M49 top-level regions, used to group the picker. */
+export const REGION_GROUPS = ['Africa', 'Americas', 'Asia', 'Europe', 'Oceania'] as const;
+
+export const REGION_GROUP: Record<(typeof REGIONS)[number], (typeof REGION_GROUPS)[number]> = {
+  'Northern Africa': 'Africa',
+  'Sub-Saharan Africa': 'Africa',
+  'Latin America and the Caribbean': 'Americas',
+  'Northern America': 'Americas',
+  'Central Asia': 'Asia',
+  'Eastern Asia': 'Asia',
+  'South-eastern Asia': 'Asia',
+  'Southern Asia': 'Asia',
+  'Western Asia': 'Asia',
+  'Eastern Europe': 'Europe',
+  'Northern Europe': 'Europe',
+  'Southern Europe': 'Europe',
+  'Western Europe': 'Europe',
+  'Australia and New Zealand': 'Oceania',
+  Melanesia: 'Oceania',
+  Micronesia: 'Oceania',
+  Polynesia: 'Oceania',
+};
+
+/**
+ * Ready-made picker options, grouped by parent region. Structurally satisfies
+ * the UI `Option` type without taxonomy needing to import from components, and
+ * without either picker restating the mapping. REGIONS is already ordered by
+ * parent region, so the group runs are contiguous.
+ */
+export const REGION_OPTIONS = REGIONS.map((r) => ({
+  value: r,
+  label: r,
+  group: REGION_GROUP[r],
+}));
+
+/**
+ * Legacy Microsoft area names mapped onto their M49 equivalent.
+ *
+ * Both benchmark stores parse stored documents with `safeParse` and silently
+ * drop anything that fails, so without this map every record submitted under
+ * the old taxonomy would vanish from the benchmark with no error anywhere. It
+ * also covers a browser holding a cached bundle, or a half-finished session
+ * restored from sessionStorage, across the deployment that changes the list.
+ *
+ * Most mappings are exact: M49 places the UK, Ireland and the Nordics all in
+ * Northern Europe, and Australia and New Zealand is a sub-region in its own
+ * right. Two are lossy and are called out in DECISIONS.md:
+ *
+ *   - MEA spanned Western Asia *and* both African sub-regions. A legacy record
+ *     cannot tell us which, so it resolves to Western Asia. Some African
+ *     respondents will have been relabelled. This ambiguity is the reason for
+ *     moving to a standard, not an argument against it.
+ *   - Microsoft's "Western Europe" often included Italy, Spain and Portugal,
+ *     which M49 places in Southern Europe. The label is unchanged, so those
+ *     records pass through as Western Europe.
+ */
+export const LEGACY_REGION_ALIASES: Record<string, (typeof REGIONS)[number]> = {
+  NA: 'Northern America',
+  LATAM: 'Latin America and the Caribbean',
+  'UK&I': 'Northern Europe',
+  Nordics: 'Northern Europe',
+  CEE: 'Eastern Europe',
+  MEA: 'Western Asia',
+  India: 'Southern Asia',
+  Japan: 'Eastern Asia',
+  ANZ: 'Australia and New Zealand',
+  ASEAN: 'South-eastern Asia',
+  'Greater China': 'Eastern Asia',
+};
+
+/**
+ * Resolves any region string — current or legacy — to a current one, or null if
+ * it is neither. Used as a Zod preprocessor so historical data survives.
+ */
+export function normaliseRegion(value: unknown): (typeof REGIONS)[number] | null {
+  if (typeof value !== 'string') return null;
+  if ((REGIONS as readonly string[]).includes(value)) return value as (typeof REGIONS)[number];
+  return LEGACY_REGION_ALIASES[value] ?? null;
+}
+
+/**
+ * The one region validator. Both the answer schema and the benchmark record
+ * schema use it, so a legacy value migrates identically whether it arrives from
+ * a restored session, a cached client bundle, or a document already in the
+ * store. An unrecognised value is left untouched for `z.enum` to reject with
+ * its usual message rather than being swallowed here.
+ */
+export const regionSchema = z.preprocess(
+  (v) => normaliseRegion(v) ?? v,
+  z.enum(REGIONS),
+);
 
 export const EMPLOYEE_BANDS = [
   '1-50',

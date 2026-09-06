@@ -3,7 +3,7 @@ import {
   EMPLOYEE_BANDS,
   INDUSTRIES,
   KNOWLEDGE_WORKER_BANDS,
-  REGIONS,
+  regionSchema,
   WORKLOAD_IDS,
   bandFromCount,
 } from '@/lib/schemas/taxonomy';
@@ -18,7 +18,7 @@ import type { EngineResult } from '@/lib/engine/types';
 export const benchmarkRecordSchema = z.object({
   rateCardVersion: z.string().max(32),
   industry: z.enum(INDUSTRIES),
-  region: z.enum(REGIONS),
+  region: regionSchema,
   employeeBand: z.enum(EMPLOYEE_BANDS),
   knowledgeWorkerBand: z.enum(KNOWLEDGE_WORKER_BANDS),
   workloads: z.array(z.enum(WORKLOAD_IDS)).max(WORKLOAD_IDS.length),

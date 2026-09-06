@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import { cn } from '@/lib/ui';
 
 /* --------------------------------------------------------------- InfoPopover */
@@ -181,6 +181,12 @@ export interface Option<T extends string> {
   value: T;
   label: string;
   desc?: string;
+  /**
+   * Optional `<optgroup>` heading. Consecutive options sharing a group are
+   * rendered under one label — used for the seventeen UN M49 sub-regions, which
+   * are only readable when nested under their parent region.
+   */
+  group?: string;
 }
 
 export function RadioCards<T extends string>({
@@ -241,6 +247,16 @@ export function SelectField<T extends string>({
   options: readonly Option<T>[];
   onChange: (v: T) => void;
 }) {
+  // Options carrying a `group` are nested in <optgroup>; ungrouped ones render
+  // flat. Runs are kept in source order rather than sorted, so a caller
+  // controls the ordering exactly as it controls a flat list.
+  const runs: { group?: string; items: Option<T>[] }[] = [];
+  for (const o of options) {
+    const last = runs[runs.length - 1];
+    if (last && last.group === o.group) last.items.push(o);
+    else runs.push({ group: o.group, items: [o] });
+  }
+
   return (
     <select
       id={id}
@@ -248,11 +264,20 @@ export function SelectField<T extends string>({
       onChange={(e) => onChange(e.currentTarget.value as T)}
       className="h-10 w-full max-w-sm rounded-field border border-line-strong bg-bg-raised px-3 text-sm transition-colors focus:border-accent"
     >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
+      {runs.map((run, idx) => {
+        const items = run.items.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ));
+        return run.group ? (
+          <optgroup key={run.group} label={run.group}>
+            {items}
+          </optgroup>
+        ) : (
+          <Fragment key={`ungrouped-${idx}`}>{items}</Fragment>
+        );
+      })}
     </select>
   );
 }

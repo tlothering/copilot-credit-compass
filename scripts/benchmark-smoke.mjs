@@ -14,7 +14,7 @@ const base = process.argv[2] ?? 'http://localhost:3000';
 const template = {
   rateCardVersion: 'v1',
   industry: 'Financial Services',
-  region: 'UK&I',
+  region: 'Northern Europe',
   employeeBand: '5k-25k',
   knowledgeWorkerBand: '1k-5k',
   workloads: ['copilot-studio-agents', 'sharepoint-agents'],

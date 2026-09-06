@@ -51,7 +51,7 @@ is stored. Not a description of it. The literal record:
 {
   "rateCardVersion": "v1",
   "industry": "Financial Services",
-  "region": "UK&I",
+  "region": "Northern Europe",
   "employeeBand": "5k-25k",
   "knowledgeWorkerBand": "1k-5k",
   "workloads": ["copilot-studio-agents", "sharepoint-agents"],
@@ -68,7 +68,7 @@ is stored. Not a description of it. The literal record:
   "estimatedAnnualSavingVsPaygUsd": 120000,
   "id": "24109973-de69-4d58-901f-130a0c706b66",
   "submittedAt": "2026-09-03T20:00:00.000Z",
-  "cohort": "Financial Services|UK&I|5k-25k"
+  "cohort": "Financial Services|Northern Europe|5k-25k"
 }
 ```
 
@@ -88,7 +88,7 @@ network inspector, and read the request body.
 
 ## 4. k-anonymity: why small cohorts never appear
 
-A benchmark that reports "one organisation in Nordics Legal, 5,000–25,000
+A benchmark that reports "one organisation in Northern European Legal, 5,000–25,000
 employees" is not anonymous. If there is only one such organisation in the
 dataset, publishing its median publishes its data.
 

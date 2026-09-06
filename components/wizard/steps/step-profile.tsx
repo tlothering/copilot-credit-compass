@@ -8,7 +8,7 @@ import {
   INDUSTRIES,
   M365_BASE_PLANS,
   MACC_BANDS,
-  REGIONS,
+  REGION_OPTIONS,
   bandFromCount,
 } from '@/lib/schemas/taxonomy';
 import { Card } from '@/components/ui/primitives';
@@ -69,7 +69,7 @@ export function StepProfile() {
         <FieldShell
           label="Primary region"
           htmlFor="region"
-          why="Region determines your benchmark cohort and flags where data-residency or sovereign-cloud constraints may narrow your funding options."
+          why="Region determines your benchmark cohort and flags where data-residency or sovereign-cloud constraints may narrow your funding options. Regions follow the UN M49 standard, so they mean the same thing here as in any other dataset."
           effect="No direct price effect in this model — the seeded rate card is USD list. Regional list prices differ; confirm with your account team."
           onSkip={skip('region')}
           skipped={isSkipped('region')}
@@ -77,7 +77,7 @@ export function StepProfile() {
           <SelectField
             id="region"
             value={profile.region}
-            options={toOptions(REGIONS)}
+            options={REGION_OPTIONS}
             onChange={(region) => setProfile({ region })}
           />
         </FieldShell>

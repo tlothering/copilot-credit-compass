@@ -22,7 +22,7 @@ const card = getRateCard();
 const SAMPLE_PAYLOAD = `{
   "rateCardVersion": "${card.version}",
   "industry": "Financial Services",
-  "region": "UK&I",
+  "region": "Northern Europe",
   "employeeBand": "5k-25k",
   "knowledgeWorkerBand": "1k-5k",
   "workloads": ["copilot-studio-agents", "sharepoint-agents"],
