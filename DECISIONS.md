@@ -688,6 +688,18 @@ same ground is not re-covered.
     "Candidate" rather than "Eligible", and a blocked row shows the rule's own
     explanation instead of an eligibility message.
 
+    A fifth instance surfaced during visual verification, worse than the other
+    four: the results page also drew a *bar chart* of the options, sourced from
+    the same structural filter. Because "do nothing" costs only what the estate
+    cannot avoid, it rendered as the shortest bar — $0 on a Microsoft-only
+    estate — sitting at the top of a chart headed "All eight funding options,
+    costed the same way". A chart is read before a table, and a zero-length bar
+    at the top reads unambiguously as "this is the cheapest way to do this". The
+    chart now plots only options still in contention; ruled-out options remain
+    in the detail table beneath it, where the reason can be read. An end-to-end
+    test asserts the ruled-out option is absent from the bars and present in the
+    table with its reason.
+
 71. **Exports were never checked for numeric agreement with the engine.** The
     existing export tests asserted that a PDF starts with `%PDF-` and that XLSX
     and PPTX are valid ZIP containers — structural validity only. Nothing

@@ -74,7 +74,14 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
   const { credits, cost, scenario, recommendation, licenceBreakEven, fundingOptions } = result;
   const primary = fundingOptions.find((o) => o.id === recommendation.primary.optionId);
   const payg = fundingOptions.find((o) => o.id === 'payg');
-  const eligible = fundingOptions.filter((o) => o.eligible);
+  // Options still in contention, per the recommendation's verdict rather than structural
+  // buyability. "Do nothing" is always structurally eligible and costs only whatever the
+  // estate cannot avoid, so charting it as a candidate puts the shortest bar — often $0 —
+  // at the top of the comparison and invites exactly the wrong conclusion.
+  const blockedIds = new Set(
+    recommendation.ranked.filter((r) => r.blocked).map((r) => r.optionId),
+  );
+  const eligible = fundingOptions.filter((o) => !blockedIds.has(o.id));
   const maxOption = Math.max(...fundingOptions.map((o) => o.twelveMonthTotalUsd), 1);
 
   return (

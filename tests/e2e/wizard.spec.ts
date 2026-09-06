@@ -81,6 +81,39 @@ test.describe('wizard', () => {
     await expect(page.getByText(/v1/).first()).toBeVisible();
   });
 
+  test('never charts a ruled-out option as a candidate', async ({ page }) => {
+    // "Do nothing" is always structurally buyable, and because it declines to fund
+    // the demand rather than costing it, it carries the lowest twelve-month figure —
+    // often $0. Charting it alongside real options puts the shortest bar at the top
+    // of the comparison, which reads as "the cheapest way to do this". It must appear
+    // only in the detail table, explicitly marked as ruled out.
+    await page.goto('/assess/2');
+    const boxes = page.locator('input[type="checkbox"]');
+    if ((await page.locator('input[type="checkbox"]:checked').count()) === 0) {
+      await boxes.first().check();
+      await boxes.nth(1).check();
+    }
+    for (const step of [2, 3, 4]) await continueFrom(page, step);
+    await page.getByRole('button', { name: /Calculate my result/ }).click();
+    await page.waitForURL(/\/results/);
+
+    const comparison = page
+      .locator('section')
+      .filter({ hasText: 'All eight funding options' })
+      .first();
+    await expect(comparison).toBeVisible();
+
+    // The bar chart lives above the detail table; the ruled-out option must not be
+    // one of the bars.
+    const bars = comparison.locator('div').filter({ hasText: /^Do nothing/ });
+    await expect(bars).toHaveCount(0);
+
+    // It must still be present in the table, with the reason it was ruled out.
+    const row = comparison.locator('tr').filter({ hasText: 'Do nothing' }).first();
+    await expect(row).toBeVisible();
+    await expect(row.getByText(/Ruled out|Not eligible/)).toBeVisible();
+  });
+
   test('warns before discarding the session', async ({ page }) => {
     await page.goto('/assess/2');
 
