@@ -7,6 +7,9 @@ import { SelectField } from '@/components/wizard/fields';
 import { EMPLOYEE_BANDS, INDUSTRIES, REGIONS, WORKLOAD_IDS, workloadMeta } from '@/lib/schemas/taxonomy';
 import type { WorkloadId } from '@/lib/schemas/taxonomy';
 import { fundingOptionLabel } from '@/lib/benchmark/labels';
+// Imported, never restated. A local copy of this shape in the landing ticker
+// drifted from the API and silently blanked every tile it rendered.
+import type { BenchmarkSummary, CohortSummary } from '@/lib/benchmark/aggregate';
 import { cn, num, pct } from '@/lib/ui';
 
 /** Ids arrive from the API as bare strings; fall back rather than throw. */
@@ -14,50 +17,6 @@ function workloadLabel(id: string): string {
   return (WORKLOAD_IDS as readonly string[]).includes(id)
     ? workloadMeta(id as WorkloadId).label
     : id;
-}
-
-interface Percentiles {
-  p25: number;
-  p50: number;
-  p75: number;
-  p90: number;
-}
-
-interface CohortSummary {
-  cohort: string;
-  label: string;
-  granularity: string;
-  n: number;
-  creditsPerKwPerMonth: Percentiles;
-  costPerKwPerMonth: Percentiles;
-  medianAgentCount: number;
-  topWorkloads: { workloadId: string; sharePct: number }[];
-  topStrategy: { strategy: string; sharePct: number } | null;
-  lastUpdated: string;
-}
-
-interface Summary {
-  kAnonymityMinimum: number;
-  totalRecords: number;
-  publishedRecords: number;
-  rejectedOutliers: number;
-  lastUpdated: string | null;
-  cohorts: CohortSummary[];
-  headline: {
-    assessments: number;
-    organisationsContributing: number;
-    medianCreditsPerKwPerMonth: number | null;
-    mostRecommendedStrategy: string | null;
-  };
-  byIndustry: {
-    industry: string;
-    n: number;
-    medianCreditsPerKwPerMonth: number;
-    medianAgentCount: number;
-    topStrategy: string | null;
-  }[];
-  workloadAdoption: { workloadId: string; n: number; sharePct: number }[];
-  limitations: string[];
 }
 
 const ANY = '__all__';
@@ -71,7 +30,7 @@ export function BenchmarkDashboard() {
   const [industry, setIndustry] = useState<string>(ANY);
   const [region, setRegion] = useState<string>(ANY);
   const [employeeBand, setBand] = useState<string>(ANY);
-  const [data, setData] = useState<Summary | null>(null);
+  const [data, setData] = useState<BenchmarkSummary | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
 
   const qs = useMemo(() => {
@@ -87,7 +46,7 @@ export function BenchmarkDashboard() {
     setState('loading');
     fetch(`/api/benchmark/summary${qs ? `?${qs}` : ''}`, { signal: ac.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: Summary) => {
+      .then((d: BenchmarkSummary) => {
         setData(d);
         setState('ready');
       })

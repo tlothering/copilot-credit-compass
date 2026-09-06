@@ -270,6 +270,40 @@ View Transitions and spring motion sit inside
 `@media (prefers-reduced-motion: no-preference)`, and a `reduce` block disables
 transitions outright. Motion is a garnish; the tool works without it.
 
+**45a. API response shapes are imported from the producer, never restated.**
+The landing ticker shipped with a hand-written local `TickerData` interface
+naming four fields — `totalRuns`, `cohorts: number`,
+`medianCreditsPerUserPerMonth`, `medianAnnualUsd` — that the aggregate has never
+returned. Every tile rendered an em dash on every visit, in both themes, from
+the first commit. The type system said nothing, because
+`r.json() as Promise<TickerData>` is an *assertion*, not a check: `json()`
+returns `any`, and casting it invents a contract rather than verifying one.
+There was no second source of truth to disagree with.
+
+Both consumers of `/api/benchmark/summary` now import `BenchmarkSummary` from
+`lib/benchmark/aggregate.ts`, so the producer's type is the only definition and
+any future field rename is a compile error. The rule generalises: an
+`as Promise<T>` on a `fetch().json()` is an unchecked claim, and if `T` is
+declared locally it is a latent bug waiting for someone to rename a field.
+
+**45b. The fourth ticker tile shows a strategy, not a median spend.**
+The broken tile had asked for `medianAnnualUsd`, which does not exist and was
+not simply misnamed — the aggregate publishes no median-spend figure at all.
+Computing one from the per-cohort medians would be a median of medians, which
+`METHODOLOGY.md` explicitly refuses as unsound. The tile now shows
+"Most recommended strategy", which the aggregate genuinely reports and which is
+subject to the same k-anonymity withholding as everything else.
+
+**45c. The regression test asserts rendered values, not markup.**
+The existing suite stayed green throughout, because a page full of em dashes is
+perfectly accessible, perfectly navigable and perfectly exportable. Axe had no
+complaint. `tests/e2e/landing.spec.ts` therefore asserts that the ticker
+resolves to real figures: no skeletons left spinning, no em dashes, and an
+assessment count matching `/^[\d,]+$/`. That last one holds in CI with an empty
+store because `headline.assessments` is `0`, not `null`, on a fresh deployment.
+The test was confirmed non-vacuous by reintroducing the original field name and
+watching two of the three cases fail.
+
 ---
 
 ## 7. Infrastructure
