@@ -791,3 +791,72 @@ Investigated and found correct, recorded so it is not re-litigated:
     it can never undercut an option that does — checked across all four estate
     shapes. Reverting the fix fails four tests; reverting the pack rule fails
     two. Both were confirmed before restoring.
+
+## 13. Independent review round three — a tie decided by declaration order
+
+76. **My predicted outcome for the round-two rule change was wrong, and the
+    reviewer was right to check it.** In round two I narrowed the "do nothing"
+    disqualification back to `annualDemand > 0`, arguing that leaving the
+    `unavoidableSpend > 0` clause in place would block do-nothing and leave
+    pay-as-you-go recommended at an identical price against zero Microsoft
+    consumption. The reviewer ran it and found that is what happens *anyway*.
+
+    With every option now carrying the same `platformBase`, a GitHub-only estate
+    produces an eight-way tie. Equal scores fell through to `twelveMonthTotalUsd`,
+    which was also equal, and the stable sort then preserved the order the
+    options were built in — with `payg` ahead of `do-nothing`. So the tool
+    headlined *"Fund this with pay-as-you-go only — $3,528,000"* for an estate
+    where pay-as-you-go would fund exactly $0 and the whole sum sits on GitHub's
+    meter. That is a worse misread than the "Do nothing, $3.5m" label I had been
+    trying to avoid, and it landed in the headline rather than in a breakdown.
+
+    The lesson is the one I keep applying to other people's claims and had not
+    applied to my own: I predicted engine behaviour instead of running it.
+
+77. **An explicit no-decision outcome, rather than a funding instrument that
+    funds nothing.** `Recommendation` gains `noDecisionRequired`, set when
+    Microsoft credit demand is zero. In that state no credit funding instrument
+    changes anything, so the honest primary is "do nothing" and the headline says
+    plainly that there is no Microsoft credit funding decision to make, naming
+    the meters the modelled spend actually sits on — derived from the cost
+    model's platform lines rather than from a hard-coded list, so a future meter
+    is named without a code change.
+
+    This is why `buildRecommendation` now takes the `CostModel`: it needs to
+    describe *where* the money is, not merely how much of it there is.
+
+78. **Ranking must never resolve on declaration order.** The sort now falls
+    through score → twelve-month total → commitment lock-in → option id, so two
+    genuinely equivalent options resolve on a stated preference (shorter lock-in,
+    then alphabetical) rather than on an implementation detail. A regression test
+    ranks the same two options in both input orders and asserts an identical
+    result. Cost is compared before lock-in because a cheaper option that ties on
+    score is the more defensible recommendation to a finance reader.
+
+79. **The export writers each compose their own call to action, and none of them
+    read the headline.** Grepping every consumer of `recommendation.primary`
+    before assuming the fix propagated — the discipline that round one taught,
+    after five renderers were found conflating eligibility with the verdict —
+    turned up three surfaces that would have emitted "Approve Do nothing at
+    $936,000" onto a slide, "Adopt Do nothing as the funding route" into the PDF
+    approval section, and "Do nothing" as the dashboard's headline verdict. All
+    three now branch on `noDecisionRequired`. The PDF's "why not simply do
+    nothing" section also had to change, since it argued against the very option
+    being recommended.
+
+80. **A test that sat at 5.04s against a 5s default is a bug in the gate.** The
+    monotonicity invariant runs four hundred full engine passes and failed once
+    during this round on timeout, not on maths — it passed on seven consecutive
+    re-runs, and its seeds are fixed, so a flaky result was impossible by
+    construction. Vitest had no configured `testTimeout`. It is now 60s. A gate
+    that fails intermittently trains you to re-run rather than to read, which is
+    exactly how a real failure gets waved through.
+
+81. **Not actioned: `runEngine` accepts unvalidated input.** The reviewer noted
+    that hand-built answers bypassing `answersSchema` yield `NaN` rather than an
+    error, and rated it low priority because the API route validates properly.
+    Agreed, and left alone deliberately: the engine is documented as pure and
+    total over *valid* input, the schema is the boundary, and re-validating on
+    every internal call would duplicate the contract in two places. The cost of
+    the current design is confusing output for someone testing the engine
+    directly, which is a smaller harm than two divergent definitions of valid.

@@ -3,6 +3,7 @@ import { buildRisks, runCore, runEngine, runEstimate } from '@/lib/engine';
 import { buildRecommendation } from '@/lib/engine/recommendation';
 import { buildScenarioModel } from '@/lib/engine/scenario-band';
 import { buildCreditModel } from '@/lib/engine/credit-model';
+import { buildCostModel } from '@/lib/engine/cost-model';
 import { buildVolumeModel } from '@/lib/engine/volume-model';
 import { buildLicenceBreakEven } from '@/lib/engine/licence-break-even';
 import { normalise } from '@/lib/engine/normalise';
@@ -58,7 +59,8 @@ function scaffold(workloads: WorkloadId[], patch: Parameters<typeof answersWith>
   const credits = buildCreditModel(volume, card, trail);
   const scenario = buildScenarioModel(credits, normalised, card, trail);
   const licenceBreakEven = buildLicenceBreakEven(credits, normalised, card, trail);
-  return { normalised, scenario, licenceBreakEven, trail };
+  const cost = buildCostModel(credits, normalised, card, trail);
+  return { normalised, scenario, licenceBreakEven, cost, trail };
 }
 
 /** Runs the real risk register against a core result whose primary option we control. */
@@ -211,13 +213,13 @@ describe('Foundry swap with nothing generative to swap', () => {
 });
 
 describe('headline when the recommended plan costs more than the meter', () => {
-  const { scenario, normalised, licenceBreakEven } = scaffold(['m365-copilot-chat']);
+  const { scenario, normalised, licenceBreakEven, cost } = scaffold(['m365-copilot-chat']);
 
   const headlineFor = (primary: FundingOption): string => {
     // payg is disqualified so it cannot win, but its total still sets the baseline
     // the headline compares against — which is how we reach the "costs more" branch.
     const options = [primary, makeOption('payg', { twelveMonthTotalUsd: 1, eligible: false })];
-    return buildRecommendation(options, scenario, normalised, licenceBreakEven, card, audit())
+    return buildRecommendation(options, cost, scenario, normalised, licenceBreakEven, card, audit())
       .headline;
   };
 
@@ -257,11 +259,37 @@ describe('headline when the recommended plan costs more than the meter', () => {
 });
 
 describe('recommendation with a short option list', () => {
-  const { scenario, normalised, licenceBreakEven } = scaffold(['m365-copilot-chat']);
+  const { scenario, normalised, licenceBreakEven, cost } = scaffold(['m365-copilot-chat']);
+
+  it('prefers the cheaper option when two score identically but cost differently', () => {
+    // Scores can tie while totals differ, because score = total × rule multipliers. The
+    // MACC rule applies a fixed 0.95 to MACC-eligible options, so $1,000 eligible and
+    // $950 ineligible both score 950. Without an explicit tie-break the winner would be
+    // whichever happened to be built first; the ranking must not depend on that.
+    const { scenario: s, normalised: n, licenceBreakEven: l, cost: c } = scaffold(
+      ['m365-copilot-chat'],
+      { growth: { hasUnspentAzureCommitment: true } },
+    );
+    const dearer = makeOption('packs-plus-payg', {
+      twelveMonthTotalUsd: 1000,
+      maccEligibility: 'yes',
+    });
+    const cheaper = makeOption('payg', { twelveMonthTotalUsd: 950, maccEligibility: 'no' });
+
+    const forward = buildRecommendation([dearer, cheaper], c, s, n, l, card, audit());
+    const reversed = buildRecommendation([cheaper, dearer], c, s, n, l, card, audit());
+
+    expect(forward.ranked[0]!.score).toBe(forward.ranked[1]!.score);
+    // 'payg' sorts after 'packs-plus-payg' alphabetically, so it can only win here on
+    // the cost comparison — not on the id fallback.
+    expect(forward.ranked[0]!.optionId).toBe('payg');
+    expect(forward.ranked.map((r) => r.optionId)).toEqual(reversed.ranked.map((r) => r.optionId));
+  });
 
   it('offers whatever alternatives exist when fewer than three options are supplied', () => {
     const rec = buildRecommendation(
       [makeOption('payg'), makeOption('packs-only', { twelveMonthTotalUsd: 2000 })],
+      cost,
       scenario,
       normalised,
       licenceBreakEven,
@@ -273,7 +301,7 @@ describe('recommendation with a short option list', () => {
   });
 
   it('degrades gracefully when no option at all is supplied', () => {
-    const rec = buildRecommendation([], scenario, normalised, licenceBreakEven, card, audit());
+    const rec = buildRecommendation([], cost, scenario, normalised, licenceBreakEven, card, audit());
     expect(rec.ranked).toEqual([]);
     expect(rec.alternatives).toEqual([]);
     expect(rec.primary.optionId).toBe('payg');
@@ -289,6 +317,7 @@ describe('recommendation with a short option list', () => {
           ineligibleReasons: ['No generative traffic to move.'],
         }),
       ],
+      cost,
       scenario,
       normalised,
       licenceBreakEven,
@@ -303,6 +332,7 @@ describe('recommendation with a short option list', () => {
   it('falls back to a generic note when an ineligible option gives no reason', () => {
     const rec = buildRecommendation(
       [makeOption('payg'), makeOption('byom-foundry', { eligible: false, ineligibleReasons: [] })],
+      cost,
       scenario,
       normalised,
       licenceBreakEven,
@@ -315,6 +345,7 @@ describe('recommendation with a short option list', () => {
   it('treats a missing pre-purchase option as commit-blocked', () => {
     const rec = buildRecommendation(
       [makeOption('payg')],
+      cost,
       scenario,
       normalised,
       licenceBreakEven,
@@ -329,6 +360,7 @@ describe('recommendation with a short option list', () => {
   it('uses the generic commit message when a pre-purchase option gives no reason', () => {
     const rec = buildRecommendation(
       [makeOption('p3-plus-payg', { eligible: false, ineligibleReasons: [] })],
+      cost,
       scenario,
       normalised,
       licenceBreakEven,
@@ -343,6 +375,7 @@ describe('recommendation with a short option list', () => {
   it('reports no governance actions when none are warranted', () => {
     const rec = buildRecommendation(
       [makeOption('payg')],
+      cost,
       scenario,
       normalise(
         answersWith(['m365-copilot-chat'], {}, {
@@ -363,6 +396,7 @@ describe('recommendation with a short option list', () => {
   it('pluralises the waste message for a single offending option', () => {
     const rec = buildRecommendation(
       [makeOption('packs-only', { purchasedCredits: 100_000, wastePctOfPurchased: 90 })],
+      cost,
       scenario,
       normalised,
       licenceBreakEven,

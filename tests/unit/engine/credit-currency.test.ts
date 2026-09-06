@@ -267,6 +267,97 @@ describe('a seat bill with no overage is still unavoidable spend', () => {
   });
 });
 
+describe('an estate with no Microsoft credit demand has no funding decision to make', () => {
+  const shapes = [
+    ['no overage', GITHUB_ONLY_NO_OVERAGE],
+    ['with overage', GITHUB_ONLY],
+  ] as const;
+
+  it.each(shapes)('%s: is never headlined with a Microsoft funding instrument', (_name, answers) => {
+    const { credits, recommendation } = runEngine(answers);
+    expect(credits.billableCredits).toBe(0);
+    expect(recommendation.noDecisionRequired).toBe(true);
+
+    // The precise misread this guards: naming a credit funding instrument in the headline
+    // tells the reader to stand up a meter for money that meter cannot touch.
+    expect(recommendation.headline).not.toMatch(/^Fund this with/i);
+    expect(recommendation.headline).toMatch(/no Microsoft credit funding decision/i);
+    for (const instrument of [
+      'pay-as-you-go only',
+      'capacity pack',
+      'pre-purchase',
+      'licence shift',
+      'bring your own model',
+    ]) {
+      expect(recommendation.headline.toLowerCase()).not.toContain(instrument);
+    }
+    expect(recommendation.primary.optionId).toBe('do-nothing');
+  });
+
+  it('says where the money actually is, so the figure is not read as fundable', () => {
+    const { cost, recommendation } = runEngine(GITHUB_ONLY_NO_OVERAGE);
+    const seats = cost.platformLines.find((l) => l.id === 'github-copilot-seats')!;
+    expect(recommendation.headline).toContain(seats.label);
+    expect(recommendation.headline).toContain('none of these eight options reach');
+  });
+
+  it('does not fire the no-decision outcome when there is Microsoft demand', () => {
+    for (const answers of [MICROSOFT_ONLY, MIXED]) {
+      const { credits, recommendation } = runEngine(answers);
+      expect(credits.billableCredits).toBeGreaterThan(0);
+      expect(recommendation.noDecisionRequired).toBe(false);
+      expect(recommendation.headline).toMatch(/^Fund this with/i);
+      expect(recommendation.primary.optionId).not.toBe('do-nothing');
+    }
+  });
+
+  it('says nothing is modelled when the estate is empty, rather than naming a meter', () => {
+    const { recommendation } = runEngine(flatAnswers([]));
+    expect(recommendation.noDecisionRequired).toBe(true);
+    expect(recommendation.primary.twelveMonthTotalUsd).toBe(0);
+    expect(recommendation.headline).toMatch(/nothing you have modelled consumes/i);
+    expect(recommendation.headline).not.toMatch(/^Fund this with/i);
+  });
+
+  it('describes non-GitHub platform spend as seat and platform cost', () => {
+    // A licence-only estate: seats bill, but nothing consumes Microsoft Copilot Credits,
+    // so there is still no funding decision and nothing sits on another vendor's meter.
+    const { credits, cost, recommendation } = runEngine(flatAnswers(['m365-copilot']));
+    expect(credits.billableCredits).toBe(0);
+    expect(cost.platformAnnualUsd).toBeGreaterThan(0);
+    expect(cost.platformLines.every((l) => l.id === 'm365-copilot-seats')).toBe(true);
+    expect(recommendation.noDecisionRequired).toBe(true);
+    expect(recommendation.headline).toMatch(/seat and platform cost that no credit funding/i);
+  });
+});
+
+describe('ranking never depends on the order options are declared in', () => {
+  it('resolves an exact tie by commitment then id, not by array position', () => {
+    // Every option ties on cost here, so the order is decided entirely by the tie-break.
+    const { fundingOptions, recommendation } = runEngine(GITHUB_ONLY_NO_OVERAGE);
+    const totals = fundingOptions.map((o) => o.twelveMonthTotalUsd);
+    for (const total of totals) expect(near(total)).toBe(near(totals[0]!));
+
+    const lockIn = new Map(fundingOptions.map((o) => [o.id, o.commitmentLockInMonths]));
+    const blocked = recommendation.ranked.filter((r) => r.blocked).map((r) => r.optionId);
+
+    // Among options that tie on everything scored, the documented rule is: least
+    // commitment first, then id. Never array position.
+    const expected = [...blocked].sort(
+      (a, b) => (lockIn.get(a)! - lockIn.get(b)!) || a.localeCompare(b),
+    );
+    expect(blocked).toEqual(expected);
+    expect(blocked.length).toBeGreaterThan(1);
+  });
+
+  it('is reproducible across repeated runs', () => {
+    const once = runEngine(MIXED).recommendation.ranked.map((r) => r.optionId).join(',');
+    for (let i = 0; i < 5; i += 1) {
+      expect(runEngine(MIXED).recommendation.ranked.map((r) => r.optionId).join(',')).toBe(once);
+    }
+  });
+});
+
 describe('workload picker meter chips match what the engine bills', () => {
   // The chip on each workload card in step 2 is derived from WorkloadMeta.creditMeter.
   // If a workload's engine output ever moves to a different meter, the card would keep

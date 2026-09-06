@@ -107,6 +107,7 @@ export function runCore(answers: Answers, card: RateCard): CoreResult {
 
   const recommendation = buildRecommendation(
     fundingOptions,
+    cost,
     scenario,
     normalised,
     licenceBreakEven,

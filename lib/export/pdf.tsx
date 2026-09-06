@@ -247,23 +247,39 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
         </View>
 
         <Text style={s.h3}>What we are asking you to approve</Text>
-        <Text style={s.p}>
-          Adopt <Text style={{ fontFamily: 'Helvetica-Bold' }}>{recommendation.primary.label}</Text>{' '}
-          as the funding route for Copilot consumption, at an expected{' '}
-          {money(cost.totalMonthlyUsd)} a month, and review it at the ninety-day true-up before any
-          longer commitment is signed.
-        </Text>
+        {recommendation.noDecisionRequired ? (
+          <Text style={s.p}>
+            Nothing, on these assumptions. There is no Microsoft Copilot Credit demand to fund, so
+            no credit funding instrument would carry any of the modelled spend. Confirm the estate
+            assumptions, and revisit this if Microsoft Copilot workloads are introduced.
+          </Text>
+        ) : (
+          <Text style={s.p}>
+            Adopt{' '}
+            <Text style={{ fontFamily: 'Helvetica-Bold' }}>{recommendation.primary.label}</Text> as
+            the funding route for Copilot consumption, at an expected {money(cost.totalMonthlyUsd)}{' '}
+            a month, and review it at the ninety-day true-up before any longer commitment is signed.
+          </Text>
+        )}
 
         <Text style={s.h3}>The three risks that matter</Text>
         <Bullets items={result.risks.slice(0, 3).map((r) => `${r.title} — ${r.description}`)} />
 
         <Text style={s.h3}>Why not simply do nothing</Text>
-        <Text style={s.p}>
-          Consumption happens whether or not it is funded deliberately. On current assumptions the
-          organisation would spend {money(payg?.twelveMonthTotalUsd ?? 0)} over twelve months at
-          unmanaged rates. The recommendation does not increase usage; it changes how the same usage
-          is paid for.
-        </Text>
+        {recommendation.noDecisionRequired ? (
+          <Text style={s.p}>
+            Doing nothing about credit funding is the honest answer here, because there is no
+            Microsoft credit demand for any of these instruments to fund. That is not the same as
+            there being no cost: the modelled spend still falls due on the meters named above.
+          </Text>
+        ) : (
+          <Text style={s.p}>
+            Consumption happens whether or not it is funded deliberately. On current assumptions the
+            organisation would spend {money(payg?.twelveMonthTotalUsd ?? 0)} over twelve months at
+            unmanaged rates. The recommendation does not increase usage; it changes how the same
+            usage is paid for.
+          </Text>
+        )}
 
         <Text style={s.h3}>Confidence</Text>
         <Text style={s.p}>

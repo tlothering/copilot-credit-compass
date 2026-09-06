@@ -579,6 +579,16 @@ export interface Recommendation {
   rules: RuleOutcome[];
   governanceActions: string[];
   safetyNet: string | null;
+  /**
+   * True when there is no Microsoft Copilot Credit demand to fund, so no funding
+   * instrument in this model changes anything and every option costs the same.
+   *
+   * This is an explicit outcome rather than a tie. Left to the sort, equal scores
+   * resolved on declaration order and pay-as-you-go won by accident — headlining a
+   * GitHub seat bill as something a Microsoft credit meter should fund, when that meter
+   * would fund none of it.
+   */
+  noDecisionRequired: boolean;
 }
 
 /* ------------------------------------------------------------------ */

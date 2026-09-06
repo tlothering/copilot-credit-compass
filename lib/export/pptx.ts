@@ -161,7 +161,13 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
 
   /* -------------------------------------------- 2 — The recommendation */
   const s2 = p.addSlide({ masterName: 'CCC' });
-  title(s2, 'The recommendation', recommendation.primary.label);
+  title(
+    s2,
+    'The recommendation',
+    recommendation.noDecisionRequired
+      ? 'No Microsoft credit funding decision required'
+      : recommendation.primary.label,
+  );
   stat(s2, 0.5, '12-month cost', money(recommendation.primary.twelveMonthTotalUsd), primary ? `${primary.cashFlowShape} cash flow` : '');
   stat(
     s2,
@@ -339,7 +345,9 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
   s6.addText(
     [
       {
-        text: `Approve ${recommendation.primary.label} at ${money(recommendation.primary.twelveMonthTotalUsd)} over twelve months, reviewed at the ninety-day true-up.`,
+        text: recommendation.noDecisionRequired
+          ? `No credit funding instrument to approve — there is no Microsoft Copilot Credit demand for one to fund. Confirm the estate assumptions and revisit if Microsoft Copilot workloads are introduced.`
+          : `Approve ${recommendation.primary.label} at ${money(recommendation.primary.twelveMonthTotalUsd)} over twelve months, reviewed at the ninety-day true-up.`,
         options: { bullet: true, color: INK, fontSize: 12, breakLine: true },
       },
       ...result.risks.slice(0, 4).map((r) => ({

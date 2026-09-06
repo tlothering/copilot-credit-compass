@@ -108,7 +108,9 @@ function Results({ result, skipped }: { result: EngineResult; skipped: number })
           </div>
 
           <h1 className="mt-4 text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
-            {recommendation.primary.label}
+            {recommendation.noDecisionRequired
+              ? 'No Microsoft credit funding decision required'
+              : recommendation.primary.label}
           </h1>
           <p className="mt-2 max-w-3xl text-pretty text-sm leading-relaxed text-fg-muted">
             {recommendation.headline}

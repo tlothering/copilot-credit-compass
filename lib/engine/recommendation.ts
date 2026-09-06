@@ -1,4 +1,5 @@
 import type {
+  CostModel,
   FundingOption,
   FundingOptionId,
   LicenceBreakEven,
@@ -28,6 +29,7 @@ const usd = (v: number): string =>
  */
 export function buildRecommendation(
   options: FundingOption[],
+  cost: CostModel,
   scenario: ScenarioModel,
   normalised: NormalisedAnswers,
   licenceBreakEven: LicenceBreakEven,
@@ -248,18 +250,28 @@ export function buildRecommendation(
   // only thing any of these eight options actually changes. It does not fire on total
   // spend, because "do nothing" now carries the same platform and seat base as every
   // other option — it can only ever tie, never win by a phantom margin.
-  //
-  // That distinction matters. An estate with a large GitHub bill but no Microsoft credit
-  // demand has no Microsoft funding decision to make, and every option costs the same.
-  // Blocking "do nothing" there would recommend standing up a pay-as-you-go credit meter
-  // against zero consumption, which is worse advice than the honest answer that nothing
-  // in this tool moves that number.
   if (annualDemand > 0) {
     disqualified.set(
       'do-nothing',
       'You have modelled real demand, so declining to fund it is a baseline for comparison rather than a plan.',
     );
   }
+
+  /* ---- No Microsoft credit demand means no decision to make ------- */
+  // With zero Microsoft credit demand every option costs exactly the same, because the
+  // only thing that varies between them is credit funding and there are no credits to
+  // fund. Left to the sort, that tie resolves on declaration order and pay-as-you-go
+  // wins by accident — headlining "fund this with pay-as-you-go, $936,000" when
+  // pay-as-you-go would fund $0 of it and the whole sum bills on GitHub's meter. That
+  // is a worse misread than any label, and it lands in the headline.
+  //
+  // So the no-decision case is answered explicitly rather than being left to a tie.
+  const noDecisionRequired = annualDemand <= 0;
+  // Named so the headline can say where the money actually is, rather than leaving the
+  // reader to infer it from a figure attached to an instrument that cannot fund it.
+  const offMeterLabels = cost.platformLines
+    .filter((l) => l.id.startsWith('other-meter-') || l.id === 'github-copilot-seats')
+    .map((l) => l.label);
 
   /* ---- Scoring ---------------------------------------------------- */
   const ranked: RankedOption[] = options
@@ -273,8 +285,24 @@ export function buildRecommendation(
     })
     .sort((a, b) => {
       if (a.blocked !== b.blocked) return a.blocked ? 1 : -1;
+      // With nothing to fund, the honest answer is that no instrument is needed — not
+      // whichever instrument happens to be declared first.
+      if (noDecisionRequired) {
+        const aIsDoNothing = a.option.id === 'do-nothing' ? 0 : 1;
+        const bIsDoNothing = b.option.id === 'do-nothing' ? 0 : 1;
+        if (aIsDoNothing !== bIsDoNothing) return aIsDoNothing - bIsDoNothing;
+      }
       if (a.score !== b.score) return a.score - b.score;
-      return a.option.twelveMonthTotalUsd - b.option.twelveMonthTotalUsd;
+      if (a.option.twelveMonthTotalUsd !== b.option.twelveMonthTotalUsd) {
+        return a.option.twelveMonthTotalUsd - b.option.twelveMonthTotalUsd;
+      }
+      // Identical cost and identical score. Prefer the option that ties the customer
+      // down least, then settle it by id. Never let the answer depend on the order the
+      // options happen to be built in.
+      if (a.option.commitmentLockInMonths !== b.option.commitmentLockInMonths) {
+        return a.option.commitmentLockInMonths - b.option.commitmentLockInMonths;
+      }
+      return a.option.id.localeCompare(b.option.id);
     })
     .map(({ option, score, blocked }) => ({
       optionId: option.id,
@@ -308,7 +336,14 @@ export function buildRecommendation(
   const annualSavingVsNaivePaygUsd = paygTotal - primary.twelveMonthTotalUsd;
   const primaryOption = byId.get(primary.optionId);
 
-  const headline = buildHeadline(primary, primaryOption, annualSavingVsNaivePaygUsd, safetyNet);
+  const headline = buildHeadline(
+    primary,
+    primaryOption,
+    annualSavingVsNaivePaygUsd,
+    safetyNet,
+    noDecisionRequired,
+    offMeterLabels,
+  );
 
   audit.record(
     'recommendation:primary',
@@ -335,6 +370,7 @@ export function buildRecommendation(
     rules,
     governanceActions,
     safetyNet,
+    noDecisionRequired,
   };
 }
 
@@ -354,8 +390,25 @@ function buildHeadline(
   option: FundingOption | undefined,
   saving: number,
   safetyNet: string | null,
+  noDecisionRequired: boolean,
+  offMeterLabels: string[],
 ): string {
   const total = usd(primary.twelveMonthTotalUsd);
+
+  // No Microsoft credit demand means no Microsoft credit funding decision. Saying so
+  // plainly is the only honest headline; naming a funding instrument here would tell the
+  // reader to stand up a meter for money that meter cannot touch.
+  if (noDecisionRequired) {
+    if (primary.twelveMonthTotalUsd <= 0) {
+      return 'There is no Microsoft credit funding decision to make here — nothing you have modelled consumes Microsoft Copilot Credits.';
+    }
+    const where =
+      offMeterLabels.length > 0
+        ? ` The ${total} over twelve months in this model is ${offMeterLabels.join(' and ')}, billed on meters none of these eight options reach.`
+        : ` The ${total} over twelve months in this model is seat and platform cost that no credit funding instrument changes.`;
+    return `There is no Microsoft credit funding decision to make here — you have no Microsoft Copilot Credit demand to fund.${where}`;
+  }
+
   const base = `Fund this with ${primary.label.charAt(0).toLowerCase()}${primary.label.slice(1)} — ${total} over twelve months`;
   const savingClause =
     saving > 0

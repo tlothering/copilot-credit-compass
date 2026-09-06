@@ -42,7 +42,7 @@ function recommend(
   };
   const options = buildFundingOptions(input, trail);
   return {
-    rec: buildRecommendation(options, scenario, normalised, licenceBreakEven, card, trail),
+    rec: buildRecommendation(options, cost, scenario, normalised, licenceBreakEven, card, trail),
     options,
     scenario,
     licenceBreakEven,
