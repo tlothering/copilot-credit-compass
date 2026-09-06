@@ -259,7 +259,13 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
 
   /* -------------------------------------------------- 4 — The options */
   const s4 = p.addSlide({ masterName: 'CCC' });
-  title(s4, 'The options', 'Eight routes, costed on identical volume');
+  title(
+    s4,
+    'The options',
+    recommendation.noDecisionRequired
+      ? 'Eight routes, identical because none of them touch this spend'
+      : 'Eight routes, costed on identical volume',
+  );
   // Structural eligibility is not the whole verdict: an option can be perfectly buyable
   // and still be disqualified by a recommendation rule. "Do nothing" is the dangerous
   // case — it is always buyable and often carries the lowest figure in the table, so
@@ -296,6 +302,14 @@ export async function buildPptx({ answers, result }: ExportInput): Promise<Blob>
     ],
     { ...tableOpts, y: 1.35, colW: [2.7, 1.3, 1.1, 1.0, 1.1, 0.9, 0.9] },
   );
+  if (recommendation.noDecisionRequired) {
+    // Eight identical seven-figure numbers read as a tool that did nothing. Say why they
+    // are identical, before the reader concludes the comparison was worthless.
+    s4.addText(
+      'Every row shows the same total because there is no Microsoft Copilot Credit demand for any of these instruments to fund. The figure is platform and seat cost, which each option carries unchanged. Choosing between them would change nothing.',
+      { x: 0.5, y: 4.55, w: 9, h: 0.7, fontSize: 10, color: MUTED, italic: true },
+    );
+  }
 
   /* ---------------------------------------------- 5 — Licence offset */
   const s5 = p.addSlide({ masterName: 'CCC' });

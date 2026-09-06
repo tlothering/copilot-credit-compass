@@ -138,6 +138,10 @@ describe('exports do not ask a customer to approve a decision that does not exis
     expect(flat).not.toContain('approve do nothing');
     expect(flat).toContain('no credit funding instrument to approve');
     expect(flat).toContain('no microsoft credit funding decision required');
+    // Eight identical seven-figure rows read as a tool that did nothing unless the deck
+    // says why they are identical.
+    expect(flat).toContain('identical because none of them touch this spend');
+    expect(flat).toContain('choosing between them would change nothing');
   });
 
   it('the pdf never says "adopt do nothing" as the funding route', async () => {
@@ -162,5 +166,9 @@ describe('exports do not ask a customer to approve a decision that does not exis
 
     expect(squashed).not.toContain('adoptdonothing');
     expect(squashed).toContain('nothing,ontheseassumptions');
+    // The rationale page must not open with the option label next to a seven-figure
+    // number; the no-decision framing leads and the label follows underneath.
+    expect(squashed).toContain('nomicrosoftcreditfundingdecisionrequired');
+    expect(squashed).toContain('itdoesnotmeannocost');
   });
 });

@@ -860,3 +860,25 @@ Investigated and found correct, recorded so it is not re-litigated:
     every internal call would duplicate the contract in two places. The cost of
     the current design is confusing output for someone testing the engine
     directly, which is a smaller harm than two divergent definitions of valid.
+
+82. **The option label still led on one surface, and eight identical numbers
+    needed explaining.** A follow-up review generated all three real export
+    files for a GitHub-only estate and read the text out of them rather than
+    trusting the engine flag. Two presentation points, both fair.
+
+    The PDF rationale page still opened "RECOMMENDATION & RATIONALE / Do nothing
+    (deliberate baseline)" — the exact "unfortunate label next to a seven-figure
+    number" this round was about, on the one surface where the option label led.
+    The page now opens with the no-decision framing and records the option name
+    underneath, with an explicit "it does not mean no cost" before the summary.
+
+    The PPTX options table showed all eight rows at an identical $3,528,000.
+    Accurate, but eight identical seven-figure numbers invite the reader to
+    conclude the comparison was worthless. The slide subtitle now says the routes
+    are identical because none of them touch this spend, and a note under the
+    table explains that the figure is platform and seat cost every option carries
+    unchanged, so choosing between them would change nothing.
+
+    Both assertions were proved non-vacuous by running the new tests against the
+    previous commit's writers: exactly the two new assertions fail and nothing
+    else does.

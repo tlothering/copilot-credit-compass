@@ -293,8 +293,21 @@ export async function buildPdf({ answers, result }: ExportInput): Promise<Blob> 
       {/* 3 — Recommendation & rationale */}
       <Page size="A4" style={s.page}>
         <Text style={s.kicker}>RECOMMENDATION &amp; RATIONALE</Text>
-        <Text style={s.h2}>{recommendation.primary.label}</Text>
-        <Text style={s.p}>{primary?.summary}</Text>
+        {recommendation.noDecisionRequired ? (
+          <>
+            <Text style={s.h2}>No Microsoft credit funding decision required</Text>
+            <Text style={s.p}>
+              Recorded as &ldquo;{recommendation.primary.label}&rdquo; in the table below, meaning no
+              credit funding instrument is put in place. It does not mean no cost:{' '}
+              {primary?.summary}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text style={s.h2}>{recommendation.primary.label}</Text>
+            <Text style={s.p}>{primary?.summary}</Text>
+          </>
+        )}
 
         <Text style={s.h3}>Primary and alternatives</Text>
         <Table
