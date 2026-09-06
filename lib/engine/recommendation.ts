@@ -244,16 +244,20 @@ export function buildRecommendation(
   });
 
   /* ---- "Do nothing" never wins while there is real demand -------- */
-  // Demand on another meter counts too. A GitHub-only estate has no Microsoft credit
-  // demand at all, yet still has a bill that no funding decision here avoids — so
-  // "do nothing" must not be allowed to win it by default.
-  const unavoidableSpend = byId.get('do-nothing')?.twelveMonthTotalUsd ?? 0;
-  if (annualDemand > 0 || unavoidableSpend > 0) {
+  // The guard is deliberately narrow: it fires on Microsoft credit demand, which is the
+  // only thing any of these eight options actually changes. It does not fire on total
+  // spend, because "do nothing" now carries the same platform and seat base as every
+  // other option — it can only ever tie, never win by a phantom margin.
+  //
+  // That distinction matters. An estate with a large GitHub bill but no Microsoft credit
+  // demand has no Microsoft funding decision to make, and every option costs the same.
+  // Blocking "do nothing" there would recommend standing up a pay-as-you-go credit meter
+  // against zero consumption, which is worse advice than the honest answer that nothing
+  // in this tool moves that number.
+  if (annualDemand > 0) {
     disqualified.set(
       'do-nothing',
-      annualDemand > 0
-        ? 'You have modelled real demand, so declining to fund it is a baseline for comparison rather than a plan.'
-        : 'Your modelled consumption bills on a meter no funding decision here controls, so doing nothing is an unbudgeted invoice rather than a saving.',
+      'You have modelled real demand, so declining to fund it is a baseline for comparison rather than a plan.',
     );
   }
 

@@ -95,7 +95,7 @@ export function buildFundingOptions(input: FundingInput, audit: AuditTrail): Fun
     ),
     buildLicenceShift(input, payg, platformBase),
     buildByomFoundry(input, payg, platformBase),
-    buildDoNothing(input, annualDemand),
+    buildDoNothing(input, annualDemand, platformBase),
   ];
 
   for (const option of options) {
@@ -233,6 +233,11 @@ function buildPacksOnly(
   const creditFunding = packCount * packPrice * 12;
   const hardStopAcceptable = input.normalised.answers.growth.budgetTolerance === 'never';
   const ineligibleReasons: string[] = [];
+  if (packCount === 0) {
+    ineligibleReasons.push(
+      'You have no Microsoft credit demand to put through a capacity pack, so there is no capacity to buy.',
+    );
+  }
   if (!hardStopAcceptable) {
     ineligibleReasons.push(
       'You told us an overage is acceptable, so a hard capacity stop is a worse fit than pairing packs with a pay-as-you-go safety net.',
@@ -311,6 +316,17 @@ function buildPacksPlusPayg(
   const overageCredits = sum(demand.map((d) => Math.max(0, d - capacity)));
   const creditFunding = sum(monthlyCreditUsd);
 
+  // A pack-based option quoted at zero packs is not a capacity strategy — it has
+  // silently degenerated into plain pay-as-you-go. Offering it as a live candidate to
+  // an estate with no Microsoft credit demand invites the customer to buy a capacity
+  // pack they can never draw against.
+  const ineligibleReasons: string[] = [];
+  if (packCount === 0) {
+    ineligibleReasons.push(
+      'You have no Microsoft credit demand to put through a capacity pack, so this option is pay-as-you-go under another name.',
+    );
+  }
+
   return finalise({
     id: 'packs-plus-payg',
     label: 'Capacity packs + pay-as-you-go overage',
@@ -345,8 +361,8 @@ function buildPacksPlusPayg(
       },
       { label: 'Platform and seat costs', annualUsd: platformBase },
     ],
-    eligible: true,
-    ineligibleReasons: [],
+    eligible: ineligibleReasons.length === 0,
+    ineligibleReasons,
     meta: { packCount, capacityPerMonth: capacity, sizingPercentile, overageCredits },
   });
 }
@@ -703,20 +719,31 @@ function buildByomFoundry(
 /* 8. Do nothing                                                       */
 /* ------------------------------------------------------------------ */
 
-function buildDoNothing(input: FundingInput, annualDemand: number): FundingOption {
-  // Declining to fund is a real choice about Microsoft credits and Microsoft seats.
-  // It is not a choice about credits billed on another meter: GitHub AI credit overage
-  // is enabled by default and bills automatically against seats you already hold, so no
-  // decision made in this tool avoids it. Zeroing it here would make the GitHub bill look
-  // like a saving and hand "do nothing" an unearned win, which is the precise error the
-  // separate credit meters exist to prevent.
-  const unavoidableLines = input.cost.platformLines.filter((l) => l.id.startsWith('other-meter-'));
-  const unavoidableAnnualUsd = unavoidableLines.reduce((acc, l) => acc + l.annualUsd, 0);
+function buildDoNothing(
+  input: FundingInput,
+  annualDemand: number,
+  platformBase: number,
+): FundingOption {
+  // "Do nothing" declines to put a *credit funding instrument* in place. It does not
+  // cancel the platform subscriptions the user has told us about: GitHub and Microsoft
+  // 365 Copilot seats, Security Copilot SCUs, Foundry tokens and GitHub AI credit
+  // overage all keep billing whichever of these eight options is chosen. Those lines
+  // are inputs to the funding question, not answers to it.
+  //
+  // So this option carries the identical `platformBase` as the other seven, and the
+  // only thing that varies across the comparison is the credit funding. Deriving that
+  // by construction — rather than by testing line ids for a prefix — is what stops a
+  // future platform line from silently handing "do nothing" an unearned win, which is
+  // exactly how the GitHub seat line was missed.
+  const unavoidableLines = input.cost.platformLines;
+  const unavoidableAnnualUsd = platformBase;
+  const variable = unavoidableLines.some((l) => l.id.startsWith('other-meter-'));
 
   return finalise({
     id: 'do-nothing',
     label: 'Do nothing (deliberate baseline)',
-    summary: 'No funding instrument is put in place; the modelled capability is simply not delivered.',
+    summary:
+      'No credit funding instrument is put in place; the modelled credit demand is simply not served. Seats and platform subscriptions already in the plan keep billing.',
     creditFundingUsd: 0,
     platformCostUsd: unavoidableAnnualUsd,
     monthlyCreditUsd: ZERO_MONTHS(),
@@ -725,7 +752,8 @@ function buildDoNothing(input: FundingInput, annualDemand: number): FundingOptio
     purchasedCredits: 0,
     wasteCredits: 0,
     shortfallCredits: annualDemand,
-    cashFlowShape: unavoidableAnnualUsd > 0 ? 'monthly-variable' : 'none',
+    cashFlowShape:
+      unavoidableAnnualUsd <= 0 ? 'none' : variable ? 'monthly-variable' : 'monthly-fixed',
     commitmentLockInMonths: 0,
     maccEligibility: 'no',
     reversibility: 'n/a',
@@ -735,14 +763,16 @@ function buildDoNothing(input: FundingInput, annualDemand: number): FundingOptio
       'Teams are already consuming credits — doing nothing then means an unbudgeted invoice, not a saving.',
     breakdown: [
       {
-        label: 'Capability not delivered',
+        label: 'Credit demand not served',
         annualUsd: 0,
         note: `${Math.round(annualDemand).toLocaleString('en-US')} credits of forecast demand goes unserved`,
       },
       ...unavoidableLines.map((l) => ({
         label: l.label,
         annualUsd: l.annualUsd,
-        note: 'Bills automatically on its own meter — declining to fund Microsoft credits does not stop it.',
+        note: l.id.startsWith('other-meter-')
+          ? 'Bills automatically on its own meter — declining to fund Microsoft credits does not stop it.'
+          : 'You told us about this spend. Declining to fund credits does not cancel it, and every other option carries it identically.',
       })),
     ],
     eligible: true,

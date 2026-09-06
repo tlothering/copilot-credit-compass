@@ -14,6 +14,19 @@ import { card, flatAnswers, near } from './fixtures';
 const GITHUB_ONLY = flatAnswers(['github-copilot'], {
   'github-copilot': { seats: 400, plan: 'business', heavyUserPct: 100, modelTier: 'premium' },
 });
+/**
+ * A GitHub estate whose consumption sits *inside* the pooled allowance, so there is no
+ * overage line at all — only the seat bill.
+ *
+ * This is the case that defeated the previous fix. That fix identified unavoidable spend
+ * by testing for an `other-meter-` id prefix, which the overage line carries and the seat
+ * line does not. With an overage line present the guard appeared to work; with only a seat
+ * line, unavoidable spend collapsed to zero and "do nothing" reported $0 against a real
+ * seven-figure bill.
+ */
+const GITHUB_ONLY_NO_OVERAGE = flatAnswers(['github-copilot'], {
+  'github-copilot': { seats: 2000, plan: 'enterprise', heavyUserPct: 10, modelTier: 'economy' },
+});
 const MICROSOFT_ONLY = flatAnswers(['copilot-studio-agents', 'm365-copilot-chat']);
 const MIXED = flatAnswers(['github-copilot', 'copilot-studio-agents'], {
   'github-copilot': { seats: 400, plan: 'business', heavyUserPct: 100, modelTier: 'premium' },
@@ -142,19 +155,115 @@ describe('funding options cannot fund the wrong meter', () => {
   });
 
   it('still bills the GitHub estate even though no option can fund it, including doing nothing', () => {
-    const { fundingOptions, recommendation } = runEngine(GITHUB_ONLY);
-    const ghAnnual = runEngine(GITHUB_ONLY).cost.platformLines.find(
-      (l) => l.id === 'other-meter-github-ai-credit',
-    )!.annualUsd;
-    expect(ghAnnual).toBeGreaterThan(0);
-    for (const option of fundingOptions) {
-      expect(option.twelveMonthTotalUsd, option.id).toBeGreaterThanOrEqual(ghAnnual);
-    }
-    // Doing nothing must not look free: the overage bills whatever you decide here.
+    const { fundingOptions, cost } = runEngine(GITHUB_ONLY);
+    const ghOverage = cost.platformLines.find((l) => l.id === 'other-meter-github-ai-credit');
+    const ghSeats = cost.platformLines.find((l) => l.id === 'github-copilot-seats');
+    expect(ghSeats!.annualUsd).toBeGreaterThan(0);
+
     const doNothing = fundingOptions.find((o) => o.id === 'do-nothing')!;
-    expect(doNothing.twelveMonthTotalUsd).toBeGreaterThanOrEqual(ghAnnual);
-    expect(recommendation.ranked.find((o) => o.optionId === 'do-nothing')!.blocked).toBe(true);
-    expect(recommendation.primary.optionId).not.toBe('do-nothing');
+
+    // The seat bill is the line that was missed: it is not prefixed `other-meter-`, so a
+    // filter keyed on that prefix silently dropped it and handed "do nothing" a saving
+    // that does not exist. Doing nothing cancels no subscription.
+    expect(doNothing.platformCostUsd).toBe(cost.platformAnnualUsd);
+    expect(doNothing.platformCostUsd).toBeGreaterThanOrEqual(ghSeats!.annualUsd);
+    if (ghOverage) {
+      expect(doNothing.platformCostUsd).toBeGreaterThanOrEqual(
+        ghSeats!.annualUsd + ghOverage.annualUsd,
+      );
+    }
+
+    // The real invariant, stronger than any blocking rule: declining to fund credits can
+    // never come out cheaper than funding them, because the platform base is identical
+    // across all eight options and only the credit funding varies.
+    for (const option of fundingOptions) {
+      expect(option.twelveMonthTotalUsd, option.id).toBeGreaterThanOrEqual(
+        doNothing.twelveMonthTotalUsd - 1e-6,
+      );
+    }
+
+    // Every platform line must appear in the breakdown, so the number is explainable.
+    for (const line of cost.platformLines) {
+      expect(
+        doNothing.breakdown.some((b) => b.label === line.label),
+        line.id,
+      ).toBe(true);
+    }
+  });
+
+  it('does not pretend a Microsoft funding instrument helps an estate with no Microsoft demand', () => {
+    const { credits, fundingOptions, recommendation } = runEngine(GITHUB_ONLY);
+    expect(credits.billableCredits).toBe(0);
+
+    // Every option costs the same, because there is no Microsoft credit demand for any
+    // of them to fund. Quoting a capacity pack here would be quoting for capacity that
+    // can never be drawn against, so both pack options must be ruled out by name.
+    const totals = fundingOptions.map((o) => o.twelveMonthTotalUsd);
+    for (const total of totals) expect(near(total)).toBe(near(totals[0]!));
+
+    for (const id of ['packs-only', 'packs-plus-payg'] as const) {
+      const option = fundingOptions.find((o) => o.id === id)!;
+      expect(option.eligible, id).toBe(false);
+      expect(option.ineligibleReasons.join(' '), id).toMatch(/no Microsoft credit demand/i);
+      expect(recommendation.ranked.find((r) => r.optionId === id)!.blocked, id).toBe(true);
+    }
+  });
+});
+
+describe('a seat bill with no overage is still unavoidable spend', () => {
+  it('has a seat line and no overage line, which is what made this case slip through', () => {
+    const { cost, credits } = runEngine(GITHUB_ONLY_NO_OVERAGE);
+    expect(credits.billableCredits).toBe(0);
+    expect(cost.platformLines.find((l) => l.id.startsWith('other-meter-'))).toBeUndefined();
+    const seats = cost.platformLines.find((l) => l.id === 'github-copilot-seats')!;
+    expect(seats.annualUsd).toBeGreaterThan(0);
+    // Nothing in the platform set carries the prefix the old filter looked for, so that
+    // filter would have summed to zero here.
+    expect(
+      cost.platformLines
+        .filter((l) => l.id.startsWith('other-meter-'))
+        .reduce((a, l) => a + l.annualUsd, 0),
+    ).toBe(0);
+  });
+
+  it('never reports doing nothing as free while a seat bill is running', () => {
+    const { cost, fundingOptions } = runEngine(GITHUB_ONLY_NO_OVERAGE);
+    const doNothing = fundingOptions.find((o) => o.id === 'do-nothing')!;
+    expect(cost.platformAnnualUsd).toBeGreaterThan(0);
+    expect(doNothing.twelveMonthTotalUsd).toBe(cost.platformAnnualUsd);
+    expect(doNothing.meta?.unavoidableAnnualUsd).toBe(cost.platformAnnualUsd);
+    expect(doNothing.cashFlowShape).not.toBe('none');
+  });
+
+  it('never lets doing nothing undercut an option that funds the same estate', () => {
+    const { fundingOptions } = runEngine(GITHUB_ONLY_NO_OVERAGE);
+    const doNothing = fundingOptions.find((o) => o.id === 'do-nothing')!;
+    for (const option of fundingOptions) {
+      expect(option.twelveMonthTotalUsd, option.id).toBeGreaterThanOrEqual(
+        doNothing.twelveMonthTotalUsd - 1e-6,
+      );
+    }
+  });
+
+  it('holds for every estate shape, not just the GitHub ones', () => {
+    // The property is general: doing nothing funds no credits, so it can never be
+    // cheaper than an option that does, and it can never shed a platform line.
+    for (const [name, answers] of [
+      ['github-only-no-overage', GITHUB_ONLY_NO_OVERAGE],
+      ['github-only-overage', GITHUB_ONLY],
+      ['microsoft-only', MICROSOFT_ONLY],
+      ['mixed', MIXED],
+    ] as const) {
+      const { cost, fundingOptions } = runEngine(answers);
+      const doNothing = fundingOptions.find((o) => o.id === 'do-nothing')!;
+      expect(doNothing.platformCostUsd, name).toBe(cost.platformAnnualUsd);
+      expect(doNothing.creditFundingUsd, name).toBe(0);
+      for (const option of fundingOptions) {
+        expect(option.twelveMonthTotalUsd, `${name}/${option.id}`).toBeGreaterThanOrEqual(
+          doNothing.twelveMonthTotalUsd - 1e-6,
+        );
+      }
+    }
   });
 });
 

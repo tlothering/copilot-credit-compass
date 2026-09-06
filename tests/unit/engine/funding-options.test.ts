@@ -207,10 +207,25 @@ describe('2. capacity packs only', () => {
   });
 
   it('can be eligible for a flat estate that never tolerates an overage', () => {
-    const o = fund([], {}, { growth: { budgetTolerance: 'never' } }, true).byId('packs-only');
+    // Needs real demand: a pack sized against an estate with no Microsoft credit demand
+    // buys zero packs, which is ineligible on its own terms and would mask this case.
+    const o = fund(
+      ['retrieval-api'],
+      { 'retrieval-api': { queriesPerMonth: 100 } },
+      { growth: { budgetTolerance: 'never' } },
+      true,
+    ).byId('packs-only');
+    expect(o.purchasedCredits).toBeGreaterThan(0);
     expect(o.shortfallCredits).toBe(0);
     expect(o.eligible).toBe(true);
     expect(o.ineligibleReasons).toEqual([]);
+  });
+
+  it('is ruled ineligible when there is no Microsoft credit demand to buy capacity for', () => {
+    const o = fund([], {}, { growth: { budgetTolerance: 'never' } }, true).byId('packs-only');
+    expect(o.meta?.packCount).toBe(0);
+    expect(o.eligible).toBe(false);
+    expect(o.ineligibleReasons.join(' ')).toMatch(/no Microsoft credit demand/i);
   });
 
   it('reports waste as a percentage of purchased capacity', () => {

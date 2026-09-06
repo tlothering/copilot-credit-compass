@@ -729,3 +729,65 @@ Investigated and found correct, recorded so it is not re-litigated:
 - **Layout overlap in a full-page screenshot.** An artefact of capturing sticky
   elements during a full-page scroll, not a rendering defect. Confirmed clean in
   a viewport-sized capture and by a zero horizontal overflow check at 380px.
+
+---
+
+## 12. Independent review round two — "do nothing" understated a real bill
+
+72. **Unavoidable spend must not be inferred from an id prefix.** An independent
+    review ran a GitHub-only estate whose consumption sat *inside* the pooled
+    allowance and found "do nothing" reporting $0 against a real $936,000 a year
+    seat bill, ranked first and unblocked. The finding reproduced exactly.
+
+    The previous fix identified spend that no funding decision avoids by testing
+    for an `other-meter-` id prefix. That prefix is carried by the GitHub credit
+    *overage* line and not by the GitHub *seat* line. With an overage line
+    present the guard appeared to work while capturing only part of the spend;
+    with no overage at all it summed to zero. Because the disqualification rule
+    derived its own trigger from the same figure, one missed classification took
+    out both the cost and the guard that was supposed to catch it.
+
+    The fix does not add a better classifier — it removes the need for one.
+    "Do nothing" declines to put a *credit funding instrument* in place. It does
+    not cancel the seats, SCUs, Foundry tokens or automatic overage the user has
+    told us about; those are inputs to the funding question, not answers to it.
+    So the option now carries the identical `platformBase` as the other seven,
+    and the only thing that varies across the comparison is the credit funding.
+    That is correct by construction, so a platform line added in future is
+    handled with no code change — which is the property the id prefix lacked.
+
+73. **The disqualification rule was narrowed, not widened.** With the cost
+    correct, "do nothing" carries the same platform base as every other option,
+    so it can only ever tie — never win by a phantom margin. The clause that
+    blocked it on total spend was therefore compensating for the cost bug, and
+    left in place it would over-fire: an estate with a large GitHub bill and no
+    Microsoft credit demand would have "do nothing" blocked and pay-as-you-go
+    recommended instead, at an identical price. That advises standing up a
+    Microsoft credit meter against zero Microsoft consumption. The guard now
+    fires on Microsoft credit demand alone, which is the only thing any of these
+    eight options changes. Where there is genuinely no decision to make, the
+    tool says so rather than inventing one.
+
+74. **A capacity pack quoted at zero packs is not a capacity strategy.** Both
+    pack options are now ineligible when there is no Microsoft credit demand to
+    size against. `sizePacks()` already returned zero correctly, so the numbers
+    were never wrong — but "capacity packs + pay-as-you-go" was still presented
+    as a live candidate to a customer who would buy no packs, which contradicts
+    the point of separating the meters and was inconsistent with `packs-only`
+    being ruled out on the same estate.
+
+    One existing test asserted `packs-only` could be eligible for a flat estate,
+    using an *empty* workload list. That estate has no demand, so the option is
+    now correctly ineligible and the test was asserting the defect. It was given
+    real demand so it tests its actual intent, and the zero-demand case was
+    split into a test of its own.
+
+75. **The regression test targets the no-overage case specifically.** The review
+    was right that an existing test with an overage line present would mask the
+    defect, because the broken filter did capture that line. The new fixture is a
+    GitHub estate inside its allowance, asserted to have a seat line and no
+    `other-meter-` line at all, so the old filter provably sums to zero on it.
+    Alongside it sits the general property — doing nothing funds no credits, so
+    it can never undercut an option that does — checked across all four estate
+    shapes. Reverting the fix fails four tests; reverting the pack rule fails
+    two. Both were confirmed before restoring.
