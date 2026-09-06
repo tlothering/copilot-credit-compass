@@ -895,10 +895,18 @@ Investigated and found correct, recorded so it is not re-litigated:
     implementing their defect in our extractor changed nothing and concluded the
     document contains no fractional kerns. Neither holds. The crippling edit was
     a silent no-op — the replacement never applied — and measuring the document
-    directly settles it: **54 of its 836 TJ arrays carry a decimal kern**, for
-    example `<67616e69736174696f6e> 16.573938`. Replaying the defect properly
-    reads 17,023 of 21,164 characters, 80.4%, reproducing their 81% almost
-    exactly. The defect is live against this writer, not hypothetical.
+    directly settles it. Measured on the **no-decision fixture** — the
+    GitHub-only estate, 8,489 text tokens — **54 of its 836 TJ arrays carry a
+    decimal kern**, for example `<67616e69736174696f6e> 16.573938`. Replaying
+    the defect properly reads 17,023 of 21,164 characters, 80.4%, reproducing
+    their 81% almost exactly. The defect is live against this writer, not
+    hypothetical.
+
+    These absolutes are per-document, and the suite builds two. The other is the
+    mixed-estate fixture at 9,446 tokens, on which the reviewer independently
+    measured 999 arrays, 56 decimal kerns and an 83.4% buggy read. Different
+    totals, identical conclusion. Check which export you are holding before
+    concluding the figures here are wrong.
 
     The reason our extractor is immune is **structural, not empirical**: it
     scans hex tokens across the whole inflated stream and never parses array
@@ -940,3 +948,31 @@ Investigated and found correct, recorded so it is not re-litigated:
     from a test you have not confirmed is running is not evidence of anything. I
     accepted "7 tests still pass" as proof the document was clean, when it was
     proof only that my edit had not taken effect.
+
+85. **The invariant's strength depends on slack, so assert the slack too.** The
+    reviewer observed that `tokens.length >= inTjArrays` is tight only because
+    every hex token this writer emits happens to sit inside a TJ array — slack
+    is currently zero, on both fixtures. If @react-pdf ever emitted hex
+    elsewhere, a font or metadata string, the global scan would gain headroom and
+    the invariant would silently loosen by exactly that many tokens, with nothing
+    in the suite to say so.
+
+    Their suggestion was a sentence of documentation. A sentence would not have
+    fired, so the slack is asserted instead: `tokens.length - inTjArrays` must be
+    zero, with a message explaining what widening it costs. Drift becomes a test
+    failure rather than a quiet erosion.
+
+    Ordering matters here. The slack check runs *after* the partial-read
+    assertion, because a genuine under-read makes the slack negative, and it
+    should report as "2,631 of 8,489 text tokens were dropped" rather than as
+    unexpected headroom. Both paths were confirmed to produce the right
+    diagnostic, each with the crippled code verified present in the file first.
+
+86. **Catastrophic crippling proves a guard is wired up, not that it is
+    sensitive.** The reviewer's phrasing, and it is the sharpest statement of the
+    error running through this whole round. My `{60,}` crippling fired the
+    canaries and I took that as proof they worked; they do not survive contact
+    with a *realistic* 16–20% partial read. It is the same distinction as a
+    non-vacuous test that only ever fails vacuously: the demonstration has to
+    resemble the failure you are actually defending against, or it only proves
+    the assertion executes.

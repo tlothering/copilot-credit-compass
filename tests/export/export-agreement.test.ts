@@ -85,6 +85,18 @@ async function pdfText(blob: Blob): Promise<string> {
     tokens.length,
     `extraction is partial — ${inTjArrays - tokens.length} of ${inTjArrays} text tokens were dropped`,
   ).toBeGreaterThanOrEqual(inTjArrays);
+  // The invariant above is only as strong as the slack between the two counts. Today it
+  // is zero — every hex token this writer emits sits inside a TJ array — so a dropped
+  // token cannot hide. If @react-pdf ever emits hex elsewhere (font or metadata strings),
+  // the global scan gains headroom and the invariant silently loosens by exactly that
+  // many tokens, with nothing to say so. Assert the slack rather than commenting on it,
+  // so the drift is a test failure and not a quiet erosion. Checked after the partial-read
+  // assertion so a genuine under-read reports as an under-read, not as negative slack.
+  expect(
+    tokens.length - inTjArrays,
+    'the global hex scan now sees tokens outside TJ arrays; the invariant above has ' +
+      'gained that much headroom and no longer pins the extraction tightly',
+  ).toBe(0);
 
   const squashed = shown.replace(/\s+/g, '');
   for (const canary of PDF_PAGE_CANARIES) {
