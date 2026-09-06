@@ -882,3 +882,26 @@ Investigated and found correct, recorded so it is not re-litigated:
     Both assertions were proved non-vacuous by running the new tests against the
     previous commit's writers: exactly the two new assertions fail and nothing
     else does.
+
+83. **A test extractor that under-reads weakens every assertion built on it.**
+    The reviewer found a bug in their own PDF extractor: the TJ-array pattern
+    accepted only integer kerning values, so any array containing a fractional
+    kern was discarded whole. They had been reading 81% of the document while
+    every assertion passed. It surfaced as a sentence missing its opening clause,
+    which could easily have been filed as a defect in the writer.
+
+    Ours was audited against that: the loosest possible hex extraction recovers
+    exactly the same characters as ours, and a TJ-array extraction that allows
+    decimals normalises to a byte-identical 21,164 characters, so no text is
+    being dropped. The 835-character difference between the two is the join
+    separator, one per TJ array, of which there are 836. This document happens to
+    contain no fractional kerns, so the reviewer's specific bug would not have
+    bitten here — which is luck, not design.
+
+    The guard that was in place — "more than 200 characters extracted" — would
+    have passed a 99% under-read of a 24,000-character document, so it was
+    security theatre. Extraction is now a single helper that requires one canary
+    per page of the PDF and fails naming the page it lost. Crippling the
+    extractor to read only long hex runs makes it fail with "extraction is
+    partial — COPILOT CREDIT COMPASS is missing" rather than silently passing
+    weaker assertions.

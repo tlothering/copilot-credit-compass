@@ -25,6 +25,55 @@ const RESULT = runEngine(ANSWERS);
 
 const usd0 = (n: number) => Math.round(n).toLocaleString('en-US');
 
+/**
+ * Every page kicker in the PDF. An extractor can under-read without failing — a regex
+ * that skips one construct silently drops whole passages, and then every `toContain`
+ * built on it passes against a partial document and reports more confidence than it
+ * earned. An independent reviewer hit exactly that: a TJ-array pattern that only accepted
+ * integer kerning values discarded any array containing a fractional kern, and read 81%
+ * of the file while looking healthy. Requiring one canary per page makes a partial read
+ * fail loudly instead of quietly weakening every assertion downstream.
+ */
+const PDF_PAGE_CANARIES = [
+  'COPILOT CREDIT COMPASS',
+  'EXECUTIVE SUMMARY',
+  'RECOMMENDATION & RATIONALE',
+  'FINANCIAL MODEL',
+  'TECHNICAL APPENDIX',
+  'IMPLEMENTATION ROADMAP',
+  'RISK & GOVERNANCE REGISTER',
+  'NEGOTIATION BRIEF',
+  'BENCHMARK CONTEXT',
+  'METHODOLOGY & DISCLAIMER',
+];
+
+/**
+ * @react-pdf compresses its content streams and emits text as hex strings inside TJ
+ * arrays against an ASCII-mapped subset font. Inflate, then decode the hex.
+ */
+async function pdfText(blob: Blob): Promise<string> {
+  const raw = Buffer.from(await blob.arrayBuffer()).toString('latin1');
+  let inflated = '';
+  for (const m of raw.matchAll(/stream\r?\n([\s\S]*?)endstream/g)) {
+    try {
+      inflated += inflateSync(Buffer.from(m[1]!, 'latin1')).toString('latin1');
+    } catch {
+      /* not a Flate stream; skip */
+    }
+  }
+  const shown = [...inflated.matchAll(/<([0-9a-fA-F]{2,})>/g)]
+    .map((m) => Buffer.from(m[1]!, 'hex').toString('latin1'))
+    .join('');
+
+  const squashed = shown.replace(/\s+/g, '');
+  for (const canary of PDF_PAGE_CANARIES) {
+    expect(squashed, `extraction is partial — "${canary}" is missing`).toContain(
+      canary.replace(/\s+/g, ''),
+    );
+  }
+  return squashed.toLowerCase();
+}
+
 describe('exports agree with the engine that produced them', () => {
   it('the fixture really does exercise both meters', () => {
     expect(RESULT.credits.billableCredits).toBeGreaterThan(0);
@@ -80,26 +129,10 @@ describe('exports agree with the engine that produced them', () => {
 
   it('PDF carries the recommended option and the rate card version', async () => {
     const blob = await buildExport('pdf', { answers: ANSWERS, result: RESULT });
-    const raw = Buffer.from(await blob.arrayBuffer()).toString('latin1');
+    const squashed = await pdfText(blob);
 
-    // @react-pdf compresses its content streams and emits text as hex strings inside
-    // TJ arrays against an ASCII-mapped subset font. Inflate, then decode the hex.
-    let inflated = '';
-    for (const m of raw.matchAll(/stream\r?\n([\s\S]*?)endstream/g)) {
-      try {
-        inflated += inflateSync(Buffer.from(m[1]!, 'latin1')).toString('latin1');
-      } catch {
-        /* not a Flate stream; skip */
-      }
-    }
-    const shown = [...inflated.matchAll(/<([0-9a-fA-F]{2,})>/g)]
-      .map((m) => Buffer.from(m[1]!, 'hex').toString('latin1'))
-      .join('');
-
-    expect(shown.length, 'no extractable text in the PDF').toBeGreaterThan(200);
-    const squashed = shown.replace(/\s+/g, '');
-    expect(squashed).toContain(RESULT.recommendation.primary.label.replace(/\s+/g, ''));
-    expect(squashed).toContain(RESULT.rateCardVersion);
+    expect(squashed).toContain(RESULT.recommendation.primary.label.replace(/\s+/g, '').toLowerCase());
+    expect(squashed).toContain(RESULT.rateCardVersion.toLowerCase());
   });
 });
 
@@ -149,20 +182,7 @@ describe('exports do not ask a customer to approve a decision that does not exis
       answers: NO_DECISION_ANSWERS,
       result: NO_DECISION,
     });
-    const raw = Buffer.from(await blob.arrayBuffer()).toString('latin1');
-    let inflated = '';
-    for (const m of raw.matchAll(/stream\r?\n([\s\S]*?)endstream/g)) {
-      try {
-        inflated += inflateSync(Buffer.from(m[1]!, 'latin1')).toString('latin1');
-      } catch {
-        /* not a Flate stream; skip */
-      }
-    }
-    const squashed = [...inflated.matchAll(/<([0-9a-fA-F]{2,})>/g)]
-      .map((m) => Buffer.from(m[1]!, 'hex').toString('latin1'))
-      .join('')
-      .replace(/\s+/g, '')
-      .toLowerCase();
+    const squashed = await pdfText(blob);
 
     expect(squashed).not.toContain('adoptdonothing');
     expect(squashed).toContain('nothing,ontheseassumptions');
