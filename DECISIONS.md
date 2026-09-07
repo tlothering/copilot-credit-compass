@@ -976,3 +976,38 @@ Investigated and found correct, recorded so it is not re-litigated:
     non-vacuous test that only ever fails vacuously: the demonstration has to
     resemble the failure you are actually defending against, or it only proves
     the assertion executes.
+
+## 14. Publishing to a personal repository
+
+87. **`deploy.yml` skips itself until Azure is configured.** Both jobs now carry
+    `if: vars.AZURE_CLIENT_ID != ''`. Publishing this repository anywhere new
+    used to mean the first push to `main` built a container image, pushed it to
+    GHCR, and only then failed at the OIDC login step, because a fresh
+    repository has none of the `AZURE_*` variables. That reports as a red X
+    against the commit, which reads as "the build is broken" rather than "you
+    have not connected a subscription yet" — the wrong signal, after real
+    minutes of compute. Gating `build` alone would have been sufficient, since
+    `deploy` needs it, but the condition is stated on both so neither can be
+    re-enabled on its own by accident. Setting the four repository variables
+    turns deployment on with no edit to the workflow.
+
+88. **The repository was checked before publication, not assumed clean.** 124
+    tracked files, no `.env`, key or certificate material, and nothing matching
+    the usual token shapes anywhere in the 23-commit history. The one
+    key-shaped string that does appear — `C2y6yDjf5/R+...` in `cosmos-store.ts`
+    and the README — is Cosmos DB's well-known emulator key, published by
+    Microsoft, valid only against `localhost:8081`, and already labelled as
+    such at both sites. It stays. Recorded here so the next person who runs a
+    secret scanner and gets a hit knows it was seen and judged rather than
+    missed.
+
+89. **I did not create the repository under the account this session was
+    authenticated as.** The session holds a token for `tilother_microsoft`; the
+    destination named was the personal account `tlothering`. GitHub creates
+    repositories only under the authenticated user, so the push could not be
+    made from here. Creating it under the work account and transferring it
+    afterwards would have worked mechanically, but which account owns a
+    repository is a governance decision and not one to take unilaterally on
+    someone's behalf. The history was handed over as a verified bundle instead,
+    which leaves the choice where it belongs and loses nothing: the bundle's
+    tree hash and all 23 commit hashes are identical to the source.
