@@ -1011,3 +1011,31 @@ Investigated and found correct, recorded so it is not re-litigated:
     someone's behalf. The history was handed over as a verified bundle instead,
     which leaves the choice where it belongs and loses nothing: the bundle's
     tree hash and all 23 commit hashes are identical to the source.
+
+    **Superseded.** The owner subsequently asked for the repository to be
+    created directly, which resolves the governance question by answering it.
+    See 90. The reasoning above is kept because it explains why the bundle
+    exists and why publication waited for an explicit instruction.
+
+90. **Published via the OAuth device flow, not the session's token.** The work
+    token cannot create a repository under a personal account, so `publish.ps1`
+    (kept in the session's `files/`, outside the repo) runs GitHub's device
+    flow against the `gh` CLI's public client id, holds the resulting token in
+    memory only, never writes it to disk, and scrubs it from every line of
+    output before printing. It asserts the authenticated login equals
+    `tlothering` and aborts otherwise, so a mis-typed sign-in cannot publish
+    private work to the wrong account.
+
+    Two things worth keeping. First, `$ErrorActionPreference = 'Stop'` plus
+    PowerShell 7.3+ turns *any* native command that writes to stderr into a
+    terminating error, and `git push` reports routine progress there — so the
+    first run threw on a push that had actually succeeded. The fix is
+    `$PSNativeCommandUseErrorActionPreference = $false` and judging the outcome
+    by exit code. Second, publication was confirmed by reading state back from
+    the API rather than by trusting the push: remote HEAD `0515f1a` equals local
+    HEAD, and because a commit SHA covers its tree and every ancestor, that one
+    equality is proof the whole history transferred intact. Privacy was checked
+    negatively as well — the work account gets a 404 and the repository is
+    absent from the public listing — because a `private: true` field in the
+    creation response only reports what was requested.
+

@@ -11,11 +11,14 @@ the reasoning shown, and a full audit trail of every calculation.
 Then take it away as a board pack (PDF), a working financial model with **live
 formulas** (XLSX), or a six-slide deck (PPTX).
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2FOWNER%2Fcopilot-credit-compass%2Fmain%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2FOWNER%2Fcopilot-credit-compass%2Fmain%2FcreateUiDefinition.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Ftlothering%2Fcopilot-credit-compass%2Fmain%2Fazuredeploy.json/createUIDefinitionUri/https%3A%2F%2Fraw.githubusercontent.com%2Ftlothering%2Fcopilot-credit-compass%2Fmain%2FcreateUiDefinition.json)
 
-> Replace `OWNER` in the badge URL with your GitHub org or username once the
-> repository is pushed. The portal fetches `azuredeploy.json` and
-> `createUiDefinition.json` over raw HTTPS, so both must be reachable.
+> The portal fetches `azuredeploy.json` and `createUiDefinition.json` over
+> anonymous raw HTTPS, so **the button only works while the repository is
+> public**. In a private repository it will fail to load the template — deploy
+> with `az deployment group create --template-file infra/main.bicep` instead,
+> or via the `Deploy` workflow once the `AZURE_*` variables are set. Change the
+> owner in the URL above if you fork or transfer the repository.
 
 ---
 
@@ -207,7 +210,7 @@ az deployment group create \
   --resource-group rg-compass \
   --template-file infra/main.bicep \
   --parameters namePrefix=compass \
-               containerImage=ghcr.io/OWNER/copilot-credit-compass:latest
+               containerImage=ghcr.io/tlothering/copilot-credit-compass:latest
 ```
 
 ### From CI
