@@ -1093,3 +1093,29 @@ Investigated and found correct, recorded so it is not re-litigated:
     from user`) and succeeds again once restored. Verification is by real
     `ls-remote` *and* `push`, not by an API call, since the API succeeding says
     nothing about which helper git consults.
+
+94. **Repository made public to unblock the Deploy to Azure button.** The
+    portal fetches `azuredeploy.json` and `createUiDefinition.json` over
+    *anonymous* raw HTTPS, so a private repository fails with "There was an
+    error downloading from URI ... Ensure that the template is publicly
+    accessible", which is what happened. This was the caveat already recorded
+    against the badge; the repository was flipped to public rather than
+    changing the deployment approach, because the button is a stated
+    deliverable.
+
+    A private-to-public flip cannot be undone in terms of exposure, so it was
+    preceded by a scan rather than an assumption: the full commit history was
+    searched for token-shaped strings (`gh[pousr]_`, `github_pat_`) across
+    every blob in `git rev-list --all` — none; a broad sweep for account keys,
+    private-key headers, client secrets and AWS ids — none; no `.env`, `.pem`,
+    `.pfx`, `.key` or `secrets.*` tracked. The only key-shaped string is the
+    Cosmos emulator key, which Microsoft publishes and which is labelled "not
+    a secret" at its definition. No submission data has ever been tracked: the
+    file-backed store writes to `.data/`, which is gitignored, and the only
+    file under `data/` is the rate card.
+
+    Verified afterwards the way the portal actually behaves — both raw URLs
+    fetched **unauthenticated** and returned HTTP 200 — rather than by trusting
+    the visibility field. Both documents parse, and every one of the 12
+    `createUiDefinition` outputs maps to a template parameter with none left
+    over in either direction, which is the mismatch the portal rejects next.
