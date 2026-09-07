@@ -1039,3 +1039,57 @@ Investigated and found correct, recorded so it is not re-litigated:
     absent from the public listing — because a `private: true` field in the
     creation response only reports what was requested.
 
+91. **Non-prompting pushes: three silent failures, each of which looked like
+    success.** Persisting a personal token so pushes stop prompting took four
+    attempts. Every failed attempt left configuration that *read back correctly*
+    while resolving the wrong credential, so each had to be disproved by asking
+    git what it actually resolves — `git credential fill` — rather than by
+    inspecting config. The three causes, in the order they were found:
+
+    - **`useHttpPath` path matching is exact, including the `.git` suffix.**
+      The remote is `.../copilot-credit-compass.git`, but the config had been
+      written against `.../copilot-credit-compass`. Git's own matcher settles
+      it: `git config --get-urlmatch credential <url>` applied `username` and
+      `usehttppath` for the bare URL and applied *neither* for the `.git` form.
+      Both forms are now configured, and the store file carries a line for each.
+
+    - **Windows PowerShell 5.1 drops empty-string arguments to native commands.**
+      The empty `helper` entry that resets the inherited helper list became
+      `git config --add <key>` with no value — `error: wrong number of
+      arguments, should be 2` — so the reset was never written and the ambient
+      helper stayed first. PowerShell 7 passes it correctly. `store-token.ps1`
+      now refuses to run on 5.1 and checks the exit code of that specific call.
+
+    - **`git`'s `store` helper treats a trailing CR as part of the URL.**
+      `Set-Content` terminates with CRLF, so the stored path became
+      `...copilot-credit-compass.git\r` and matched nothing. The file is now
+      written with `WriteAllText` and explicit `\n`, and the script asserts the
+      byte count of CR is zero before continuing.
+
+92. **The session environment forces its own credential helper, and no
+    file-level config can outrank it.** Tool shells run with
+    `GIT_CONFIG_PARAMETERS='credential.https://github.com.helper='
+    'credential.https://github.com.helper=copilot'`. That is applied at
+    command-line precedence — after all config files — and its empty first
+    entry *resets* whatever the repository configured before forcing `copilot`.
+    So inside this session the work-account token wins for any github.com URL
+    regardless of local settings, which is why the first verified-looking
+    attempts still returned `username=x-access-token` and `Repository not
+    found`.
+
+    The variable is injected by the app and is not present in a normal user
+    shell, so the stored credential is correct for the environment that
+    matters; verification clears the variable to test what the user will
+    actually run under. This is worth knowing before anyone concludes from a
+    failing push *in a tool shell* that the credential is broken — check for
+    the variable first.
+
+93. **The credential test was made non-vacuous before being believed.** A
+    passing `ls-remote` proves nothing on its own here, because several earlier
+    passes came from the ambient helper rather than the stored token. Two checks
+    were added: the resolved password is compared against the stored token so a
+    different credential cannot pass, and the store file is moved aside to
+    confirm the operation then fails (`exit=128 fatal: unable to get password
+    from user`) and succeeds again once restored. Verification is by real
+    `ls-remote` *and* `push`, not by an API call, since the API succeeding says
+    nothing about which helper git consults.
